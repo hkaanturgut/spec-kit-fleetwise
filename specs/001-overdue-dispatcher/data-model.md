@@ -44,9 +44,11 @@ Records every approval or rejection (FR-008).
   or days since last service > `IntervalDays - 7`.
 - `AlreadyHandled` when a `Draft` or `Scheduled` work order exists for the same vehicle and service
   type (FR-005).
-- Technician selection: `TechnicianMatcher.SuggestAsync(serviceType, requiredSkill)` returns the
-  technician holding `requiredSkill` with the fewest `Scheduled` work orders in the next 7 days,
-  ties by name (FR-011).
+- Technician selection: `TechnicianMatcher.SuggestAsync(tenantId, requiredSkill)` returns the
+  requesting tenant's technician holding `requiredSkill` with the fewest `Scheduled` work orders in the next 7 days,
+  ties by name (FR-011). Technicians of other tenants are never considered (FR-010,
+  Principle II).
+- Terminology: the spec's "customer" is the `Tenant` entity; `TenantId` everywhere in code.
 
 ## Existing entities touched
 

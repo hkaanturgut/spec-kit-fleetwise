@@ -15,6 +15,7 @@ builder.Services.AddDbContext<FleetWiseDbContext>(options =>
 builder.Services.AddSingleton<IClock, SystemClock>();
 builder.Services.AddScoped<IVehicleService, VehicleService>();
 builder.Services.AddScoped<IWorkOrderService, WorkOrderService>();
+builder.Services.AddScoped<DispatcherService>();
 
 var app = builder.Build();
 

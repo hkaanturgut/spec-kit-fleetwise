@@ -40,12 +40,13 @@ existing API and the legacy overdue report stay unchanged.
 | Principle | How this plan complies | Status |
 | --- | --- | --- |
 | I. Layered Data Access | New logic in `DispatcherService` and `TechnicianMatcher`; `DispatchController` only calls services | PASS |
-| II. Tenant Isolation | Tenant read from `X-Tenant-Id` once per request and passed to `DispatcherService`; vehicle and work-order queries filter by `TenantId` | PASS |
+| II. Tenant Isolation | Tenant read from `X-Tenant-Id` once per request and passed explicitly to `DispatcherService` and `TechnicianMatcher`; vehicle, technician, work-order, and decision queries all filter by `TenantId` | PASS (fixed after `/speckit-analyze` C1) |
 | III. Test-First | Each story starts with failing xUnit tests, including a second-tenant test | PASS |
 | IV. Backward-Compatible API | New routes under `/api/dispatch` only; existing routes untouched | PASS |
 | V. Configuration and Secrets | No secrets; "today" and "next business day" come from `IClock` | PASS |
 
-Post-design re-check: PASS (no new violations introduced by the data model or contracts).
+Post-design re-check: PASS. `/speckit-analyze` found the technician lookup unscoped (C1); fixed here and in
+data-model.md so every query in this feature takes `tenantId`.
 
 ## Project Structure
 
@@ -93,8 +94,8 @@ the controller → service → `DbContext` layering already used by `VehiclesCon
 - **Due calculation** (per vehicle, per schedule for its vehicle class): distance since the last
   record of that service type and days since it. Overdue when either exceeds the interval; due soon
   when the date falls due within 7 days. No history means due now, flagged "no history".
-- **Technician suggestion**: `TechnicianMatcher.SuggestAsync(serviceType, requiredSkill)` loads
-  technicians whose `Skills` include the required skill, then picks the one with the fewest
+- **Technician suggestion**: `TechnicianMatcher.SuggestAsync(tenantId, requiredSkill)` loads the
+  tenant's technicians whose `Skills` include the required skill, then picks the one with the fewest
   scheduled work orders in the next 7 days, ties alphabetical. None qualified means unassigned and
   flagged.
 - **Approval**: `POST /api/dispatch/approve` requires `X-User-Role: FleetManager`; creates a

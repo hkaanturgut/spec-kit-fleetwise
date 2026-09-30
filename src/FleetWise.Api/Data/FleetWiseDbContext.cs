@@ -15,6 +15,7 @@ public class FleetWiseDbContext : DbContext
     public DbSet<MaintenanceRecord> MaintenanceRecords => Set<MaintenanceRecord>();
     public DbSet<Technician> Technicians => Set<Technician>();
     public DbSet<WorkOrder> WorkOrders => Set<WorkOrder>();
+    public DbSet<DispatchDecision> DispatchDecisions => Set<DispatchDecision>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -25,6 +26,10 @@ public class FleetWiseDbContext : DbContext
 
         modelBuilder.Entity<WorkOrder>()
             .Property(w => w.Status)
+            .HasConversion<string>();
+
+        modelBuilder.Entity<DispatchDecision>()
+            .Property(d => d.Outcome)
             .HasConversion<string>();
 
         // Legacy: no global query filter for TenantId. Every query sees every tenant.

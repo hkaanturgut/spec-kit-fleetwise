@@ -13,8 +13,8 @@ files, no dependencies).
 
 **Purpose**: Confirm the baseline before changing anything.
 
-- [ ] T001 Run `dotnet test` and confirm the existing 15 tests pass on a clean checkout
-- [ ] T002 [P] Add a `TestClock`-based helper to create a second tenant's vehicles and technicians in tests/FleetWise.Tests/TestSupport.cs
+- [X] T001 Run `dotnet test` and confirm the existing 15 tests pass on a clean checkout
+- [X] T002 [P] Add a `TestClock`-based helper to create a second tenant's vehicles and technicians in tests/FleetWise.Tests/TestSupport.cs
 
 ---
 
@@ -22,11 +22,11 @@ files, no dependencies).
 
 **Purpose**: Tenant resolution and the decision entity every story needs.
 
-- [ ] T003 Write failing tests for tenant header resolution (missing header, non-numeric, valid) in tests/FleetWise.Tests/DispatchApiTests.cs
-- [ ] T004 Implement `TenantContext` (reads `X-Tenant-Id`, `X-User-Role`, `X-User-Name`) in src/FleetWise.Api/Services/TenantContext.cs
-- [ ] T005 [P] Add `DispatchDecision` entity and `DispatchOutcome` enum in src/FleetWise.Api/Models/Entities.cs
-- [ ] T006 Register `DbSet<DispatchDecision>` with string conversion for `Outcome` in src/FleetWise.Api/Data/FleetWiseDbContext.cs
-- [ ] T007 [P] Add `DispatchLine` and `TechnicianSuggestion` read models in src/FleetWise.Api/Models/Dispatch.cs
+- [X] T003 Write failing tests for tenant header resolution (missing header, non-numeric, valid) in tests/FleetWise.Tests/DispatchApiTests.cs
+- [X] T004 Implement `TenantContext` (reads `X-Tenant-Id`, `X-User-Role`, `X-User-Name`) in src/FleetWise.Api/Services/TenantContext.cs
+- [X] T005 [P] Add `DispatchDecision` entity and `DispatchOutcome` enum in src/FleetWise.Api/Models/Entities.cs
+- [X] T006 Register `DbSet<DispatchDecision>` with string conversion for `Outcome` in src/FleetWise.Api/Data/FleetWiseDbContext.cs
+- [X] T007 [P] Add `DispatchLine` and `TechnicianSuggestion` read models in src/FleetWise.Api/Models/Dispatch.cs
 
 **Checkpoint**: Foundation ready. User stories can begin.
 
@@ -41,16 +41,16 @@ the requesting tenant and none from the other tenant.
 
 ### Tests for User Story 1
 
-- [ ] T008 [P] [US1] Failing test: distance-overdue oil change is listed with `KmOverdue` in tests/FleetWise.Tests/DispatcherServiceTests.cs
-- [ ] T009 [P] [US1] Failing test: date due in 5 days is listed as `DueSoon` in tests/FleetWise.Tests/DispatcherServiceTests.cs
-- [ ] T010 [P] [US1] Failing test: tenant 1 never sees tenant 2 vehicles in tests/FleetWise.Tests/DispatcherServiceTests.cs
-- [ ] T011 [P] [US1] Failing test: open work order marks the line `AlreadyHandled` in tests/FleetWise.Tests/DispatcherServiceTests.cs
+- [X] T008 [P] [US1] Failing test: distance-overdue oil change is listed with `KmOverdue` in tests/FleetWise.Tests/DispatcherServiceTests.cs
+- [X] T009 [P] [US1] Failing test: date due in 5 days is listed as `DueSoon` in tests/FleetWise.Tests/DispatcherServiceTests.cs
+- [X] T010 [P] [US1] Failing test: tenant 1 never sees tenant 2 vehicles in tests/FleetWise.Tests/DispatcherServiceTests.cs
+- [X] T011 [P] [US1] Failing test: open work order marks the line `AlreadyHandled` in tests/FleetWise.Tests/DispatcherServiceTests.cs
 
 ### Implementation for User Story 1
 
-- [ ] T012 [US1] Implement `DispatcherService.GetLinesAsync(tenantId)` due calculation in src/FleetWise.Api/Services/DispatcherService.cs
-- [ ] T013 [US1] Add `GET /api/dispatch` in src/FleetWise.Api/Controllers/DispatchController.cs
-- [ ] T014 [US1] Register `DispatcherService` in src/FleetWise.Api/Program.cs
+- [X] T012 [US1] Implement `DispatcherService.GetLinesAsync(tenantId)` due calculation in src/FleetWise.Api/Services/DispatcherService.cs
+- [X] T013 [US1] Add `GET /api/dispatch` in src/FleetWise.Api/Controllers/DispatchController.cs
+- [X] T014 [US1] Register `DispatcherService` in src/FleetWise.Api/Program.cs
 
 **Checkpoint**: US1 works on its own: the MVP.
 
@@ -67,10 +67,11 @@ and flag lines where nobody qualifies.
 
 - [ ] T015 [P] [US2] Failing test: least-busy qualified technician is suggested, ties by name, in tests/FleetWise.Tests/TechnicianMatcherTests.cs
 - [ ] T016 [P] [US2] Failing test: no qualified technician gives an unassigned, flagged suggestion in tests/FleetWise.Tests/TechnicianMatcherTests.cs
+- [ ] T016a [P] [US2] Failing test: a qualified technician in another tenant is never suggested (FR-010) in tests/FleetWise.Tests/TechnicianMatcherTests.cs
 
 ### Implementation for User Story 2
 
-- [ ] T017 [US2] Implement `TechnicianMatcher.SuggestAsync(serviceType, requiredSkill)` in src/FleetWise.Api/Services/TechnicianMatcher.cs
+- [ ] T017 [US2] Implement `TechnicianMatcher.SuggestAsync(tenantId, requiredSkill)`, scoping technicians and work orders by `TenantId`, in src/FleetWise.Api/Services/TechnicianMatcher.cs
 - [ ] T018 [US2] Attach suggestions to lines in src/FleetWise.Api/Services/DispatcherService.cs
 
 **Checkpoint**: US1 and US2 work independently.
@@ -128,3 +129,9 @@ T008, T009, T010, T011 can be written in parallel (same file, independent test m
 1. MVP: Phases 1 to 3, then stop and validate US1 with the quickstart.
 2. Add US2, validate; add US3, validate.
 3. Polish.
+
+---
+
+## Phase 7: Convergence
+
+- [ ] T026 Return 400 when `X-Tenant-Id` does not match an existing tenant (today a non-existent tenant gets 200 with an empty list) per contracts/dispatch-api.md (partial)

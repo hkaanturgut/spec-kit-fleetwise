@@ -72,3 +72,23 @@ public class WorkOrder
     public DateTime? ScheduledFor { get; set; }
     public string Notes { get; set; } = string.Empty;
 }
+
+public enum DispatchOutcome
+{
+    Approved,
+    Rejected
+}
+
+/// <summary>An approval or rejection of a dispatcher suggestion (spec FR-008).</summary>
+public class DispatchDecision
+{
+    public int Id { get; set; }
+    public int TenantId { get; set; }
+    public int VehicleId { get; set; }
+    public string ServiceType { get; set; } = string.Empty;
+    public DispatchOutcome Outcome { get; set; }
+    public int? TechnicianId { get; set; }
+    public int? WorkOrderId { get; set; }
+    public string DecidedBy { get; set; } = string.Empty;
+    public DateTime DecidedOn { get; set; }
+}
