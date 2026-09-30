@@ -163,6 +163,20 @@ class DeliveryTests(unittest.TestCase):
         delivery.issues(create=True)
         self.assertEqual(len(self.remote_issues), 3)
 
+    def test_wrapped_task_details_are_preserved_in_issue_body(self):
+        delivery.prepare()
+        self.feature()
+        (self.directory / "tasks.md").write_text(
+            "- [ ] T001 Extend the health test\n"
+            "  to assert the fixed service name.\n"
+            "  Confirm failure before implementation.\n\n"
+            "## Implementation\n\n- [ ] T002 Add the service field\n")
+        delivery.issues(create=True)
+        self.assertEqual(len(self.remote_issues), 2)
+        self.assertIn("Confirm failure before implementation.", self.remote_issues[0]["body"])
+        self.assertEqual(self.remote_issues[0]["title"], "T001: Extend the health test")
+        self.assertNotIn("## Implementation", self.remote_issues[0]["body"])
+
     def test_missing_issues_stop_before_implementation_verification(self):
         delivery.prepare()
         self.feature()

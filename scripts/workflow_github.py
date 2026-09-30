@@ -16,7 +16,10 @@ import uuid
 REPO = "hkaanturgut/spec-kit-fleetwise"
 ACCOUNT = "hkaanturgut"
 TRAILER = "Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
-TASK = re.compile(r"^\s*[-*] \[([ xX])\] (T\d{3,})\s+(.+)$", re.MULTILINE)
+TASK = re.compile(
+    r"^[ \t]*[-*] \[([ xX])\] (T\d{3,})[ \t]+(.+(?:\n[ \t]+\S[^\n]*)*)$",
+    re.MULTILINE,
+)
 
 
 def run(*args: str, input_text: str | None = None) -> str:
@@ -143,7 +146,7 @@ def issues(create: bool) -> dict:
         for _, task_id, description in tasks:
             if task_id not in mapping:
                 mapping[task_id] = api("issues", {
-                    "title": f"{task_id}: {description}"[:256],
+                    "title": f"{task_id}: {description.splitlines()[0]}"[:256],
                     "body": f"{marker(value, task_id)}\n\nFeature: `{value['feature']}`\n"
                             f"Branch: `{value['branch']}`\n\n{description}\n\n"
                             "Tracked by the delivery workflow. Close through the reviewed PR, not generation.",
