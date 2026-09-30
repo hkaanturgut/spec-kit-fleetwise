@@ -3,7 +3,7 @@ workflow:
   id: speckit-delivery
   name: "SDD to GitHub issues and a draft PR"
   version: "0.1.0"
-  description: "Specify, plan, track tasks as issues, implement, test, and publish a reviewed feature branch."
+  description: "Specify, plan, track tasks as issues, implement, test, and publish a feature branch for PR review."
 
 requires:
   speckit_version: ">=1.0.13"
@@ -27,10 +27,6 @@ inputs:
   issues_review:
     type: string
     default: ""
-  publish_review:
-    type: string
-    default: ""
-
 steps:
   - id: branch
     type: shell
@@ -115,13 +111,6 @@ steps:
   - id: reviewdiff
     type: shell
     run: "python3 scripts/workflow_github.py review"
-
-  - id: publishreview
-    type: gate
-    message: "Review the diff, untracked feature files, issue links, and passing tests. Approve committing and pushing this feature branch and opening a draft PR to main. Nothing will merge automatically."
-    options: [approve, reject]
-    on_reject: abort
-    verdict_input: publish_review
 
   - id: publish
     type: shell

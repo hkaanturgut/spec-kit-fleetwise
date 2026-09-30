@@ -122,18 +122,14 @@ expect "H delivery pauses before public issues" "/speckit-specify /speckit-plan 
 expect_delivery "prepare"
 
 run_delivery -i spec="Health response" -i spec_review=approve -i plan_review=approve -i issues_review=approve
-expect "I delivery pauses before commit/push/PR" "/speckit-specify /speckit-plan /speckit-tasks /speckit-taskstoissues /speckit-implement" "paused"
-expect_delivery "prepare issues verify-issues test review"
-
-run_delivery -i spec="Health response" -i spec_review=approve -i plan_review=approve -i issues_review=approve -i publish_review=approve
-expect "J delivery full pipeline" "/speckit-specify /speckit-plan /speckit-tasks /speckit-taskstoissues /speckit-implement" "completed"
+expect "I delivery opens PR after automated checks" "/speckit-specify /speckit-plan /speckit-tasks /speckit-taskstoissues /speckit-implement" "completed"
 expect_delivery "prepare issues verify-issues test review publish"
 
-DELIVERY_TEST_EXIT=1 run_delivery -i spec="Health response" -i spec_review=approve -i plan_review=approve -i issues_review=approve -i publish_review=approve
+DELIVERY_TEST_EXIT=1 run_delivery -i spec="Health response" -i spec_review=approve -i plan_review=approve -i issues_review=approve
 expect "K failing tests prevent publication" "/speckit-specify /speckit-plan /speckit-tasks /speckit-taskstoissues /speckit-implement" "failed"
 expect_delivery "prepare issues verify-issues test"
 
-SKIP_ISSUES=1 run_delivery -i spec="Health response" -i spec_review=approve -i plan_review=approve -i issues_review=approve -i publish_review=approve
+SKIP_ISSUES=1 run_delivery -i spec="Health response" -i spec_review=approve -i plan_review=approve -i issues_review=approve
 expect "L no-op issue command prevents implementation" "/speckit-specify /speckit-plan /speckit-tasks /speckit-taskstoissues" "failed"
 expect_delivery "prepare verify-issues"
 
