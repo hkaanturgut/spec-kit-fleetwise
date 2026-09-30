@@ -9,8 +9,9 @@ if [[ -z "${JUMP_REEXEC:-}" ]]; then
   ROOT="$(cd "$(dirname "$0")/.." && pwd)"
   tmp="$(mktemp)"
   cp "$0" "$tmp"
-  JUMP_REEXEC=1 JUMP_ROOT="$ROOT" exec bash "$tmp" "$@"
+  JUMP_REEXEC=1 JUMP_ROOT="$ROOT" JUMP_TEMP="$tmp" exec bash "$tmp" "$@"
 fi
+if [[ -n "${JUMP_TEMP:-}" ]]; then trap 'rm -f "$JUMP_TEMP"' EXIT; fi
 cd "$JUMP_ROOT"
 
 if [[ "${1:-}" == "--list" || -z "${1:-}" ]]; then
@@ -27,6 +28,10 @@ fi
 
 git switch -q -f -C demo-live "$TAG"
 git clean -fdq -e fleetwise.db
+
+# Keep the presentation and maintained tooling while application/spec files follow the tag.
+git restore --source=main -- README.md scripts/jump.sh scripts/reset.sh \
+  scripts/preflight.sh workflows/sdd-autopilot/workflow.yml
 
 # .specify/feature.json is gitignored (per machine), so a checkout never restores it.
 # Point Spec Kit at the newest feature folder so /speckit-* commands keep working.

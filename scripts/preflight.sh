@@ -32,7 +32,7 @@ fi
 
 echo "Repo"
 git rev-parse -q --verify refs/tags/s1-00-start >/dev/null && ok "tag s1-00-start" || bad "tag s1-00-start missing"
-[[ -z "$(git status --porcelain)" ]] && ok "working tree clean" || warn "working tree has changes (run scripts/reset.sh)"
+[[ -z "$(git status --porcelain)" ]] && ok "working tree clean" || warn "working tree has changes (checkpoint presentation/tooling changes are expected; save other work before resetting)"
 count=$(git tag --list 's1-*' | wc -l | tr -d ' ')
 [[ "$count" -ge 8 ]] && ok "$count checkpoint tags" || warn "only $count checkpoint tags (dry run not recorded yet?)"
 

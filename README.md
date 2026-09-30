@@ -6,7 +6,10 @@ FleetWise is a fictional fleet-maintenance SaaS. It works, but like most real sy
 
 [![CI](https://github.com/hkaanturgut/spec-kit-fleetwise/actions/workflows/ci.yml/badge.svg)](https://github.com/hkaanturgut/spec-kit-fleetwise/actions/workflows/ci.yml)
 
-Discussing team adoption? Start with the [practical Q&A](#qa-everyday-development).
+**Present from this file:** [Run of show](#presentation-and-live-demo-runbook) |
+[Setup](#presenter-setup) | [Live steps](#step-1-add-spec-kit-16-17) |
+[Team](#team-moment-32-37) | [Automation](#workflow-automation-37-42) |
+[Q&A](#qa-everyday-development) | [Recovery](#checkpoint-recovery)
 
 ## What you will see
 
@@ -23,19 +26,20 @@ flowchart LR
 
 ## Quick start
 
-Prerequisites: .NET 8 SDK **8.0.400 or later in the 8.0 line** (see `global.json`), Python 3.11+, [uv](https://docs.astral.sh/uv/), Git, VS Code with GitHub Copilot. Optional: [GitHub Copilot CLI](https://docs.github.com/copilot/how-tos/set-up/install-copilot-cli) (for workflow runs) and the GitHub CLI.
+Prerequisites: .NET 8 SDK **8.0.400 or later in the 8.0 line** (see `global.json`), Python 3.11+, [uv](https://docs.astral.sh/uv/), Git, VS Code with GitHub Copilot. The workflow segment also needs [GitHub Copilot CLI](https://docs.github.com/copilot/how-tos/set-up/install-copilot-cli). The API examples use `curl` and `jq`; the team segment uses the GitHub CLI.
 
 ```bash
 git clone https://github.com/hkaanturgut/spec-kit-fleetwise.git
 cd spec-kit-fleetwise
 scripts/install-tools.sh     # installs the pinned Spec Kit version (.speckit-version)
 scripts/reset.sh             # branch demo-live at the starting checkpoint
-git restore --source=main -- scripts/preflight.sh  # current check, without moving historical tags
 scripts/preflight.sh         # green/red readiness check
-dotnet run --project src/FleetWise.Api   # Swagger at http://localhost:5080/swagger
+dotnet run --project src/FleetWise.Api --urls http://localhost:5081
 ```
 
-Then follow [docs/demo-guide.md](docs/demo-guide.md). Every prompt is copy-paste ready.
+Swagger is at `http://localhost:5081/swagger`. For the full development demo, stop
+the API with **Ctrl+C** and follow the [runbook below](#presentation-and-live-demo-runbook).
+Port 5081 leaves any prepared reference instance on 5080 alone.
 
 Check `dotnet --version` **inside this repository** before rehearsal. An older
 8.0 SDK or a .NET 9 SDK installed elsewhere does not satisfy `global.json`.
@@ -62,6 +66,481 @@ flowchart TB
     C3 --> D1
     D3 --> B1
 ```
+
+## Presentation and live demo runbook
+
+**Session title:** Stop Prompting, Start Specifying: Ship AI-Built Software You Can Trust with GitHub Spec Kit
+
+**Story:** FleetWise is an existing fleet-maintenance SaaS. Its overdue report
+uses a hard-coded mileage rule and mixes customers' data. We specify one change:
+an overdue-maintenance dispatcher with technician suggestions and manager approval.
+The live build implements **only User Story 1, the tenant-scoped overdue list**.
+Suggestions and approval remain planned work, not finished demo endpoints.
+
+| Minutes | Segment | Audience takeaway |
+| --- | --- | --- |
+| 0-3 | [Hook](#hook-prompt-only-coding-0-3) | A plausible answer can hide business assumptions |
+| 3-16 | [Framing](#framing-why-specifications-3-16) | Agree on intent before generating code |
+| 16-32 | [Steps 1-7](#step-1-add-spec-kit-16-17) | Adopt SDD on one slice of a real codebase |
+| 32-37 | [Team moment](#team-moment-32-37) | Shared intent, parallel tasks, reviewed PRs |
+| 37-42 | [Workflow automation](#workflow-automation-37-42) | Automate execution between human decisions |
+| 42-45 | [First 30 days](#first-30-days-42-45) | Start small and measure the outcome |
+
+### Presenter setup
+
+Keep everything in **one VS Code window**:
+
+- Open this `README.md` and use **Markdown: Open Preview to the Side**. Pin the preview.
+- Keep **Copilot Chat in agent mode** beside it. `text` blocks below go into Copilot Chat.
+- Use integrated **Terminal A** for `bash` blocks. Reserve **Terminal B** for the API.
+- Set a readable font size, disable notifications, and confirm Mermaid diagrams render in your Markdown preview.
+
+Use a dedicated practice clone. **Reset and jump discard uncommitted work and
+local files.** Stop Terminal B's API before using either command.
+
+**Terminal A, before the session:**
+
+```bash
+git status --short
+scripts/reset.sh
+scripts/preflight.sh
+scripts/jump.sh --list
+```
+
+**Expected:** preflight GREEN, 15 baseline tests, eight checkpoint tags.
+The helpers restore the current README, reset/jump/preflight scripts, and workflow
+definition from local `main` after each checkout. Application code and specs still
+come from the tag. These presentation/tooling differences can appear in `git status`;
+that is intentional. Historical tags are never moved.
+
+Start from an up-to-date `main` when preparing the practice clone. If you manually
+checked out an old tag and are using its old helper scripts, bootstrap them once:
+
+```bash
+git restore --source=main -- README.md scripts/jump.sh scripts/reset.sh scripts/preflight.sh workflows/sdd-autopilot/workflow.yml
+```
+
+**Readiness limits:** the recorded checkpoints are available, but backup video
+clips and the coding-agent PR segment still need preparation. The real workflow
+rehearsal took 6m03s, beyond its five-minute slot. Do not describe either item as
+finished preparation.
+
+### Hook: prompt-only coding (0-3)
+
+**Say:** "A useful-looking endpoint can still implement the wrong business rules."
+
+**Copilot Chat:**
+
+```text
+Add an endpoint that lists overdue vehicles and suggests a work order for each.
+```
+
+**Show:** one actual assumption in the response, such as an invented threshold,
+missing tenant scope, or an unsupported technician choice. Do not claim a flaw
+that the response does not contain. Stop a slow generation rather than wait.
+
+**Terminal A, discard the hook and return to the baseline:**
+
+```bash
+scripts/jump.sh s1-00-start
+```
+
+**Fallback:** explain the known legacy rule, "10,000 km since any service," and
+the missing tenant isolation. This is the baseline's recorded behavior, not a claim
+about what Copilot just generated.
+
+### Framing: why specifications? (3-16)
+
+**Say:** "The specification is the blueprint. Code is an implementation of it,
+not the place where we quietly invent the requirements."
+
+- **Power inversion:** humans approve intent and constraints; AI translates them into design and code.
+- **Why now:** faster code generation also produces incorrect assumptions faster.
+- **Brownfield playbook:** inspect conventions, agree on rules, choose one slice, specify its behavior, implement inside the existing architecture.
+- **Anti-pattern:** attempting to specify the entire legacy system before delivering any change.
+
+| AI-DLC concern | Spec Kit activity | Reviewable evidence |
+| --- | --- | --- |
+| Intent and requirements | constitution, specify, clarify | Principles, spec, explicit decisions |
+| Design | plan, tasks, analyze | Design artifacts, task dependencies, findings |
+| Construction and verification | implement, converge | Code, tests, remaining gaps |
+| Change management | Update affected artifacts and rerun stale stages | Traceable requirement-to-code changes |
+
+**Agent, skill, workflow:** an agent is the worker; a skill is a reusable procedure;
+a workflow coordinates execution and gates. This demo uses Copilot with Spec Kit
+skills, not a separate custom agent for each stage.
+
+**Navigate in this README:** the [spec-driven flow](#the-spec-driven-flow) is the
+visual overview. The [Q&A](#qa-everyday-development) explains small changes,
+bug fixes, and team adoption.
+
+### Step 1: add Spec Kit (16-17)
+
+**Terminal A:**
+
+```bash
+git switch -c "adopt-spec-kit-$(date +%Y%m%d-%H%M%S)"
+specify init --here --force --integration copilot
+git status --short
+```
+
+**Say:** "We added the delivery process, not a new application architecture."
+
+**Expected:** `.specify/` and `.github/skills/` contain the generated process files;
+application code is unchanged. Use hyphenated skills such as `/speckit-plan`.
+
+**Checkpoint / recovery:**
+
+```bash
+scripts/jump.sh s1-01-init
+```
+
+### Step 2: derive the constitution (17-20)
+
+**Copilot Chat, discovery only:**
+
+```text
+Read this repository and list the engineering conventions it already follows: layering, data access, validation, error handling, testing, naming, configuration, and multi-tenancy. For each convention, cite one or two files as evidence. Then list every place that breaks the convention. Do not change any files.
+```
+
+**Expected evidence:** VehiclesController and WorkOrdersController use services;
+TechniciansController and ReportsController access DbContext directly. TenantId
+exists in the data model, but legacy queries do not enforce isolation.
+
+**Say:** "Existing code is evidence, not automatically policy. We keep the service
+layer, record its violations as debt, and explicitly agree on tenant isolation."
+
+**Copilot Chat:**
+
+```text
+/speckit-constitution Capture only principles that are true in this codebase today or that the team agreed now:
+1. Data access goes through the service layer; controllers never use DbContext directly. The two existing violations are known debt, not allowed patterns.
+2. Tenant isolation is mandatory: every query and command is scoped by TenantId. This is a new rule agreed today.
+3. Tests first: new behavior starts with failing xUnit tests.
+4. The public REST API stays backward compatible; changes are additive.
+5. No secrets in code; configuration comes from environment variables or appsettings.
+```
+
+**Show:** `.specify/memory/constitution.md`. Review the diff before committing.
+
+```bash
+git --no-pager diff --stat
+git add -A
+git commit -m "docs: adopt Spec Kit constitution"
+```
+
+**Checkpoint / recovery:**
+
+```bash
+scripts/jump.sh s1-02-constitution
+```
+
+### Step 3: specify one bounded slice (20-23)
+
+**Copilot Chat:**
+
+```text
+/speckit-specify Fleet managers need an overdue-maintenance dispatcher. Show vehicles that are overdue or due within 7 days, by mileage or by date. Suggest a work order for each vehicle with the right service type and a technician who has the required skill. A manager must approve a work order before it is booked.
+```
+
+If `specify` asks its own questions, reply:
+
+```text
+Keep them as open questions in the spec; we will run clarify next.
+```
+
+**Show:** the generated `specs/<feature>/spec.md`: user stories, acceptance
+criteria, requirements, and clarification markers. A live run can choose a
+different folder name; the checkpoints use `specs/001-overdue-dispatcher/`.
+
+**Say:** "We specify the change, not the whole system."
+
+**Checkpoint / recovery:**
+
+```bash
+scripts/jump.sh s1-03-specify
+```
+
+### Step 4: clarify business decisions (23-25)
+
+**Copilot Chat:**
+
+```text
+/speckit-clarify
+```
+
+**Prepared answers:**
+
+- No qualified technician: suggest unassigned, flag "no qualified technician," and never use another customer's technician.
+- Approval: only a FleetManager in the same customer.
+- Several qualified technicians: fewest scheduled work orders in the next seven days; ties alphabetically.
+
+**Show:** the decisions integrated into the spec and unresolved markers removed.
+
+**Checkpoint / recovery:**
+
+```bash
+scripts/jump.sh s1-04-clarify
+```
+
+### Step 5: plan within the existing architecture (25-27)
+
+**Copilot Chat, one command at a time:**
+
+```text
+/speckit-plan Extend the existing .NET 8 Web API and EF Core model. Reuse VehicleService and WorkOrderService, add a DispatcherService in the existing service layer, and expose endpoints under /api/dispatch. Use the existing SQLite setup locally. No new projects and no new frameworks.
+```
+
+```text
+/speckit-tasks
+```
+
+**Show:** `plan.md`, `data-model.md`, `contracts/`, and `tasks.md`.
+
+**Always load the prepared fault for the next teaching moment:**
+
+```bash
+scripts/jump.sh s1-05-plan-tasks
+```
+
+**Say:** "This checkpoint deliberately contains a bad technician lookup. We are
+testing whether analysis catches it, not claiming every live plan makes this mistake."
+
+The lookup `TechnicianMatcher.SuggestAsync(serviceType, requiredSkill)` is not
+tenant-scoped, while the plan's Constitution Check says PASS.
+
+### Step 6: analyze catches the gap (27-28)
+
+**Copilot Chat:**
+
+```text
+/speckit-analyze
+```
+
+**Expected findings to point at:**
+
+| Finding | Severity | Why it matters |
+| --- | --- | --- |
+| Technician lookup lacks TenantId; plan incorrectly says PASS | CRITICAL | Violates the tenant-isolation principle |
+| No test proves another tenant's technician is excluded | HIGH | The safety requirement is not covered |
+
+**Copilot Chat, fix the source rather than suppressing the finding:**
+
+```text
+Fix this at the source: update plan.md and data-model.md so every dispatcher query and command is scoped by TenantId. Do not edit tasks.md by hand.
+```
+
+```text
+/speckit-tasks
+```
+
+```text
+/speckit-analyze
+```
+
+**Expected:** the critical tenant-scope finding is resolved. Other findings still
+need review; a PASS label alone is not evidence.
+
+**Fallback:** show the recorded correction in Terminal A:
+
+```bash
+git --no-pager diff s1-05-plan-tasks s1-06-implement -- specs/001-overdue-dispatcher/plan.md specs/001-overdue-dispatcher/data-model.md specs/001-overdue-dispatcher/tasks.md
+```
+
+The fault is recorded at `s1-05-plan-tasks`; the corrected design and built MVP
+are in `s1-06-implement`. There is no separate post-analysis tag. If time is short,
+use the Step 7 recovery rather than imply the recorded implementation just ran live.
+
+### Step 7: implement and converge (28-32)
+
+**Copilot Chat:**
+
+```text
+/speckit-implement Phases 1 to 3 only (User Story 1, the MVP)
+```
+
+**Terminal A:**
+
+```bash
+dotnet test --nologo
+```
+
+**Copilot Chat:**
+
+```text
+/speckit-converge
+```
+
+**Expected at the checkpoint:** 24 passing tests, up from 15. Converge records
+T026: an unknown tenant returns `200` with an empty list rather than the contract's
+`400`. Suggestions and approvals remain open tasks. Live test counts can vary;
+review behavior instead of manufacturing the reference output.
+
+**Checkpoint / recovery, with the API stopped:**
+
+```bash
+scripts/jump.sh s1-06-implement
+dotnet test --nologo
+```
+
+**Terminal B:** start or restart the API from this same practice clone. A fresh
+demo database keeps the seeded dates current without deleting another database.
+
+```bash
+ConnectionStrings__FleetWise="Data Source=fleetwise-$(date +%Y%m%d-%H%M%S).db" \
+  dotnet run --project src/FleetWise.Api --urls http://localhost:5081
+```
+
+**Terminal A, the punchline without opening a browser:**
+
+```bash
+curl -fsS http://localhost:5081/api/reports/overdue | jq .count
+# 4 vehicles across tenants, using the old rule
+
+curl -fsS http://localhost:5081/api/dispatch -H "X-Tenant-Id: 1" \
+  | jq '{lines: .count, vehicles: ([.lines[].vehicleId] | unique | length)}'
+# 38 lines, 24 vehicles, tenant 1 only
+
+curl -fsS http://localhost:5081/api/dispatch -H "X-Tenant-Id: 2" \
+  | jq '[.lines[].vehicleId] | unique | length'
+# 15 vehicles, tenant 2 only
+```
+
+**Say:** "The feature follows the agreed schedules and tenant boundary. More
+results are not the lesson; explicit rules and verifiable behavior are."
+
+### Team moment (32-37)
+
+**Say:** "The spec is the contract between people, not just between a person and AI."
+
+```mermaid
+flowchart LR
+    S["Product + developer<br/>Approve intent"] --> P["Technical lead<br/>Approve design"]
+    P --> T["Feature owner<br/>Split independent tasks"]
+    T --> D["Developers + coding agent<br/>Separate branches and PRs"]
+    D --> R["Human review<br/>Code and tests against spec"]
+```
+
+Use the [team Q&A](#how-do-multiple-team-members-work-on-the-same-project) below
+without leaving the README. Three gates are intent, design, and implementation.
+`[P]` is a candidate for parallel work, not proof that tasks cannot conflict.
+
+**Prepare before presenting, not during the five-minute segment:**
+
+```text
+/speckit-taskstoissues
+```
+
+That command creates GitHub issues. Review them, label demo issues `demo`, and
+assign two genuinely independent tasks to the Copilot coding agent if the account
+has access. Prepare the resulting PRs before the session.
+
+**Terminal A, show prepared work without changing windows:**
+
+```bash
+gh issue list --label demo --state open
+gh pr list --label demo --state open
+```
+
+If no PRs are ready, use the diagram and explain the operating model. Do not
+present an empty list as a completed coding-agent demonstration.
+
+### Workflow automation (37-42)
+
+**Say:** "Automate the execution between decisions, not the approval of unknown decisions."
+
+**Stop Terminal B's API with Ctrl+C.** Save any live work you want to keep before
+loading the workflow starting checkpoint.
+
+**Terminal A:**
+
+```bash
+scripts/jump.sh s1-06-implement
+specify workflow add --dev ./workflows/sdd-autopilot
+specify workflow list
+```
+
+In VS Code, append this requirement under Functional Requirements in
+`specs/001-overdue-dispatcher/spec.md`, then save:
+
+```text
+- **FR-012**: The overdue window is configurable per tenant (default 7 days).
+```
+
+**Terminal A:**
+
+```bash
+python3 scripts/speckit_state.py explain
+specify workflow run sdd-autopilot -i until=analyze < /dev/null
+```
+
+**Expected:** specify and clarify skip; plan/tasks update; analyze runs; the
+review gate pauses. It does not implement FR-012 yet.
+The recorded real Copilot run took **6m03s**, so pre-run it for a five-minute
+presentation slot, or use the checkpoint fallback below.
+
+**Review before approval:**
+
+```bash
+git --no-pager diff --stat
+git --no-pager diff -- specs/001-overdue-dispatcher
+specify workflow status
+```
+
+The design must contain the per-tenant window; tasks must cover the default and
+two tenants with different settings. Preserve completed tasks and T026. Reject
+if critical findings or uncovered changed requirements remain.
+
+**After review, replace `<run_id>` with the ID printed by the workflow:**
+
+```bash
+specify workflow resume <run_id> -i approval=approve < /dev/null
+```
+
+Use `approval=reject` instead if the artifacts are not ready. Stamps are written
+only after approval. An exit code of zero is not proof that an AI changed the files.
+For the optional build loop, use `until=converge` when starting the run; see the
+[automation Q&A](#can-it-run-automatically-without-someone-watching-every-step).
+
+**Recorded checkpoint fallback:**
+
+```bash
+scripts/jump.sh s1-07-workflow
+git --no-pager diff s1-06-implement s1-07-workflow -- specs/001-overdue-dispatcher
+```
+
+Narrate this as a prepared result. It is not a new live run. The separate
+`rehearsal/local-ready` branch preserves the later real Copilot-generated result
+and review corrections; the original tags remain unchanged.
+
+### First 30 days (42-45)
+
+- **Week 1:** pick one bounded change; agree on a small constitution and capture baseline tests.
+- **Week 2:** use the spec/design/code review gates; measure review effort and rework.
+- **Week 3:** divide independent tasks across people and agents; record integration conflicts and escaped defects.
+- **Week 4:** automate repeatable stages with limits and logs; keep human approval at meaningful decisions.
+
+**Close:** "Small fix: normal PR. Requirement change: relevant Spec Kit stages.
+Approved implementation: bounded automation."
+
+### Checkpoint recovery
+
+For every live step, use its recovery command above if it is slow or goes
+off-script. A useful live threshold is 90 seconds before switching to the prepared
+result. Treat the checkpoint as a transparent fallback, not as newly generated work.
+
+```mermaid
+flowchart LR
+    LIVE["Run live"] --> READY{"Useful result<br/>within the timebox?"}
+    READY -- yes --> NEXT["Review and continue"]
+    READY -- no --> STOP["Stop API and generation"]
+    STOP --> TAG["Load recorded checkpoint<br/>README stays visible"]
+    TAG --> NEXT
+```
+
+Checkpoint files are available now. Video clips still need recording: hook,
+constitution, analyze finding, implementation/convergence, and workflow change.
+Never force-update the published `s1-*` tags during practice.
 
 ## Q&A: everyday development
 
@@ -131,6 +610,26 @@ Use CODEOWNERS and branch protection to enforce review. Spec Kit does not enforc
 team ownership itself. See the [team playbook](docs/team-playbook.md) for the
 three gates: intent, design, and implementation.
 
+### What is the difference between custom agents, skills, and workflows?
+
+**Agent = worker. Skill = procedure. Workflow = coordination.**
+
+| Mechanism | Purpose | FleetWise example |
+| --- | --- | --- |
+| Custom agent | A named role with instructions and host-supported tool/model configuration | A reviewer configured with read-only tools |
+| Skill | Reusable task instructions and supporting resources, loaded by the active agent | `/speckit-plan` |
+| Workflow | Ordered steps, conditions, checks, and approval gates | `sdd-autopilot` |
+
+Spec Kit v1.0.13 defaults to `.github/skills/speckit-*/SKILL.md` for new Copilot
+projects. The `.github/agents/*.agent.md` plus companion prompt layout is still
+available through `--integration-options="--commands"`. These are alternative
+layouts for Spec Kit's own steps; your team's custom agents can coexist with skills.
+The intended artifacts are the same. Our tested demo stays in skills mode.
+
+Neither a skill nor selecting a custom agent automatically guarantees a separate
+context or security isolation. Tool restrictions must be configured, not merely
+described in a role name.
+
 ### What are the most useful adoption practices?
 
 - **Specify the change, not the entire legacy system.** Start with one bounded slice.
@@ -148,7 +647,7 @@ definition. It checks state, skips current stages, and reconciles stale plan/tas
 
 Use an initialized feature on an isolated worktree or feature branch, with
 clarification questions resolved. Use the current workflow from `main`; see the
-[demo guide](docs/demo-guide.md#workflow-automation-37-42) when starting from a historical tag.
+[runbook above](#workflow-automation-37-42) when starting from a historical tag.
 
 ```bash
 specify workflow add --dev ./workflows/sdd-autopilot
@@ -207,7 +706,10 @@ The current Copilot integration enables broad tool permissions by default
 
 ## Checkpoints
 
-Every demo step ends on a git tag, so a slow or surprising AI step never derails a live session: `scripts/jump.sh <tag>` restores a known-good state recorded from a real dry run.
+The tags record the major demo states. `scripts/jump.sh <tag>` restores the
+application and specification state while keeping this README and maintained
+demo tooling from local `main`. The post-analysis correction shares the
+implementation checkpoint rather than having its own tag.
 
 ```mermaid
 gitGraph
@@ -218,7 +720,7 @@ gitGraph
     commit id: "spec" tag: "s1-03-specify"
     commit id: "clarified" tag: "s1-04-clarify"
     commit id: "plan + tasks" tag: "s1-05-plan-tasks"
-    commit id: "phases 1-2" tag: "s1-06-implement"
+    commit id: "phases 1-3 MVP" tag: "s1-06-implement"
     commit id: "spec change" tag: "s1-07-workflow"
 ```
 
@@ -239,7 +741,7 @@ gitGraph
 ## Documentation
 
 - [Architecture and known debt](docs/architecture.md)
-- [Demo guide: every command and prompt](docs/demo-guide.md)
+- [Presentation and demo runbook: every command and prompt](#presentation-and-live-demo-runbook)
 - [Team playbook: Spec Kit with many developers](docs/team-playbook.md)
 - [Workflow automation: the sdd-autopilot workflow](docs/workflow-automation.md)
 
