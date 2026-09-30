@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  app:
+    name: Build and test FleetWise
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - run: dotnet build --nologo
+      - run: dotnet test --nologo --no-build
+
+  scripts:
+    name: Lint demo scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: shellcheck -S warning scripts/*.sh tests/workflow/*.sh tests/workflow/stub-copilot
+      - run: python3 -m py_compile scripts/speckit_state.py
+
+  workflow:
+    name: Rehearse sdd-autopilot workflow (stub Copilot)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - uses: astral-sh/setup-uv@v6
+      - name: Install pinned Spec Kit
+        run: scripts/install-tools.sh
+      - name: Run workflow scenarios
+        run: tests/workflow/run-scenarios.sh

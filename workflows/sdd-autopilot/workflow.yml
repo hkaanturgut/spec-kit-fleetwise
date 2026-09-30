@@ -1,0 +1,138 @@
+schema_version: "1.0"
+workflow:
+  id: "sdd-autopilot"
+  name: "State-aware SDD autopilot"
+  version: "0.1.0"
+  author: "Kaan Turgut"
+  description: "Checks the repo, runs only the Spec Kit steps that are missing or stale for the active feature, and pauses at human gates."
+
+requires:
+  speckit_version: ">=1.0.13"
+  integrations:
+    any: ["copilot"]
+
+inputs:
+  spec:
+    type: string
+    default: ""
+    prompt: "Feature description (used only when the active feature has no spec yet)"
+  until:
+    type: string
+    default: "analyze"
+    enum: ["analyze", "converge"]
+    prompt: "Stop after analyze, or keep going and build until converged?"
+  integration:
+    type: string
+    default: "auto"
+    prompt: "Integration to use ('auto' uses the project's initialized integration)"
+  approval:
+    type: string
+    default: ""
+    enum: ["", "approve", "reject"]
+    prompt: "Pre-answer the plan gate (leave empty to be asked)"
+
+steps:
+  # 1. Read the repo once. Every flag is positive: true means "this step must run".
+  - id: state
+    type: shell
+    run: "python3 scripts/speckit_state.py state"
+    output_format: json
+
+  # 2. The constitution is always written with humans. Never automated.
+  - id: constitutioncheck
+    type: if
+    condition: "{{ steps.state.output.data.constitution_missing }}"
+    then:
+      - id: noconstitution
+        type: gate
+        message: "No ratified constitution yet. Write it with the team using /speckit-constitution, then run this workflow again."
+        options: [abort]
+        on_reject: abort
+
+  # 3. Specify only when the active feature has no spec.
+  - id: specifycheck
+    type: if
+    condition: "{{ steps.state.output.data.needs_spec }}"
+    then:
+      - id: specify
+        type: command
+        command: speckit.specify
+        integration: "{{ inputs.integration }}"
+        input:
+          args: "{{ inputs.spec }}"
+
+  # 4. Clarify is a conversation, so the pipeline pauses for a human.
+  - id: clarifycheck
+    type: if
+    condition: "{{ steps.state.output.data.open_questions }}"
+    then:
+      - id: clarifygate
+        type: gate
+        message: "The spec has open questions. Run /speckit-clarify in Copilot Chat, answer them, then approve to continue."
+        options: [approve, reject]
+        on_reject: abort
+
+  # 5. Plan and tasks only when their inputs changed.
+  - id: plancheck
+    type: if
+    condition: "{{ steps.state.output.data.plan_stale }}"
+    then:
+      - id: plan
+        type: command
+        command: speckit.plan
+        integration: "{{ inputs.integration }}"
+      - id: stampplan
+        type: shell
+        run: "python3 scripts/speckit_state.py stamp plan"
+
+  - id: taskscheck
+    type: if
+    condition: "{{ steps.state.output.data.tasks_stale }}"
+    then:
+      - id: tasks
+        type: command
+        command: speckit.tasks
+        integration: "{{ inputs.integration }}"
+      - id: stamptasks
+        type: shell
+        run: "python3 scripts/speckit_state.py stamp tasks"
+
+  # 6. Always verify consistency, then a human approves before any code is written.
+  - id: analyze
+    type: command
+    command: speckit.analyze
+    integration: "{{ inputs.integration }}"
+
+  - id: plangate
+    type: gate
+    message: "Review the analyze report and the plan. Approve to continue."
+    show_file: "{{ steps.state.output.data.feature_dir }}/plan.md"
+    options: [approve, reject]
+    on_reject: abort
+    verdict_input: approval
+
+  # 7. Optional build loop: implement, test, converge, while open tasks remain.
+  - id: buildcheck
+    type: if
+    condition: "{{ inputs.until == 'converge' }}"
+    then:
+      - id: build
+        type: do-while
+        max_iterations: 3
+        condition: "{{ steps.remaining.output.data.open_tasks }}"
+        steps:
+          - id: implement
+            type: command
+            command: speckit.implement
+            integration: "{{ inputs.integration }}"
+          - id: test
+            type: shell
+            run: "dotnet test --nologo"
+          - id: converge
+            type: command
+            command: speckit.converge
+            integration: "{{ inputs.integration }}"
+          - id: remaining
+            type: shell
+            run: "python3 scripts/speckit_state.py remaining"
+            output_format: json
