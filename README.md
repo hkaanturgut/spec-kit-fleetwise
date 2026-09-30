@@ -618,8 +618,9 @@ flowchart LR
 ```
 
 **Prepare once before this segment, in an integrated terminal.** Start a separate
-working directory from current `origin/main`, then load only the initialization
-and agreed constitution from the checkpoint. This avoids publishing historical
+working directory from current `origin/main`, keeping its existing initialization.
+If it is not initialized, load the setup and agreed constitution from the checkpoint.
+This avoids publishing historical
 README/application regressions. Your earlier demo work stays untouched:
 
 ```bash
@@ -627,7 +628,9 @@ WORKFLOW_DEMO="$(mktemp -d "${TMPDIR:-/tmp}/fleetwise-workflow.XXXXXX")"
 git fetch origin main
 git worktree add --detach "$WORKFLOW_DEMO" origin/main
 cd "$WORKFLOW_DEMO"
-git restore --source=s1-02-constitution -- .github/skills .specify
+if [[ ! -f .specify/integration.json ]]; then
+  git restore --source=s1-02-constitution -- .github/skills .specify
+fi
 ```
 
 GitHub CLI must have the `hkaanturgut` account signed in with repository write
@@ -709,6 +712,8 @@ Retries reuse issues for the same branch/feature/task, including closed issues,
 and reuse an open PR for the same branch. A failed test or missing task issue
 stops publication; failures are not silently treated as success. A new run in
 a new worktree intentionally creates a new issue set.
+If `main` changes during a long run, resolve any PR conflicts through the normal
+branch-review process. The workflow does not overwrite `main` or force-resolve conflicts.
 
 For a fresh attempt, repeat the preparation block **from the original demo
 checkout**; keep the previous run for inspection. Do not reset your earlier live work.
