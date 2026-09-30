@@ -70,7 +70,7 @@ src/FleetWise.Api/
 ├── Controllers/
 │   └── DispatchController.cs        # NEW: /api/dispatch endpoints
 ├── Models/
-│   ├── Entities.cs                  # + DispatchDecision entity
+│   ├── Entities.cs                  # + DispatchDecision entity, Tenant.DueSoonDays
 │   └── Dispatch.cs                  # NEW: DispatchLine, TechnicianSuggestion DTOs
 ├── Services/
 │   ├── DispatcherService.cs         # NEW: due calculation, approve, reject
@@ -93,7 +93,8 @@ the controller → service → `DbContext` layering already used by `VehiclesCon
 
 - **Due calculation** (per vehicle, per schedule for its vehicle class): distance since the last
   record of that service type and days since it. Overdue when either exceeds the interval; due soon
-  when the date falls due within 7 days. No history means due now, flagged "no history".
+  when the date falls due within the tenant's due-soon window (`Tenant.DueSoonDays`, default 7,
+  FR-012). No history means due now, flagged "no history".
 - **Technician suggestion**: `TechnicianMatcher.SuggestAsync(tenantId, requiredSkill)` loads the
   tenant's technicians whose `Skills` include the required skill, then picks the one with the fewest
   scheduled work orders in the next 7 days, ties alphabetical. None qualified means unassigned and

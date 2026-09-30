@@ -51,6 +51,9 @@ the requesting tenant and none from the other tenant.
 - [X] T012 [US1] Implement `DispatcherService.GetLinesAsync(tenantId)` due calculation in src/FleetWise.Api/Services/DispatcherService.cs
 - [X] T013 [US1] Add `GET /api/dispatch` in src/FleetWise.Api/Controllers/DispatchController.cs
 - [X] T014 [US1] Register `DispatcherService` in src/FleetWise.Api/Program.cs
+- [ ] T027 [P] [US1] Failing test: a tenant with `DueSoonDays = 14` sees a service due in 10 days as `DueSoon`, a default tenant does not, in tests/FleetWise.Tests/DispatcherServiceTests.cs
+- [ ] T028 [US1] Add `DueSoonDays` (default 7) to `Tenant` in src/FleetWise.Api/Models/Entities.cs and seed both tenants with 7 in src/FleetWise.Api/Data/SeedData.cs
+- [ ] T029 [US1] Use the tenant's `DueSoonDays` instead of the constant in `DispatcherService.GetLinesAsync` in src/FleetWise.Api/Services/DispatcherService.cs
 
 **Checkpoint**: US1 works on its own: the MVP.
 

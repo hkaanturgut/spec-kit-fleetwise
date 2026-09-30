@@ -40,3 +40,12 @@
 - **Rationale**: Covers the "approved twice at the same moment" edge case in a single-instance demo.
 - **Alternatives considered**: Unique index (rejected: completed work orders must be allowed to
   repeat).
+
+## R6. Per-tenant due-soon window (FR-012)
+
+- **Decision**: Add `DueSoonDays` (int, default 7, range 1-60) to the existing `Tenant` entity and
+  read it once per `GetLinesAsync(tenantId)` call.
+- **Rationale**: One additive column on an entity FleetWise already has; no new table, no API
+  change for existing clients (Principle IV).
+- **Alternatives considered**: `appsettings` per tenant (rejected: not editable per customer);
+  per-schedule windows (rejected: not requested).

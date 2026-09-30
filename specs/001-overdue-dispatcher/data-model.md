@@ -41,7 +41,7 @@ Records every approval or rejection (FR-008).
 ## Rules
 
 - A line exists for each (vehicle, schedule) pair where distance since last service > `IntervalKm`,
-  or days since last service > `IntervalDays - 7`.
+  or days since last service > `IntervalDays - Tenant.DueSoonDays`.
 - `AlreadyHandled` when a `Draft` or `Scheduled` work order exists for the same vehicle and service
   type (FR-005).
 - Technician selection: `TechnicianMatcher.SuggestAsync(tenantId, requiredSkill)` returns the
@@ -51,6 +51,8 @@ Records every approval or rejection (FR-008).
 - Terminology: the spec's "customer" is the `Tenant` entity; `TenantId` everywhere in code.
 
 ## Existing entities touched
+
+- `Tenant`: adds `DueSoonDays` (int, default 7, allowed 1-60). Drives the due-soon rule (FR-012).
 
 - `WorkOrder`: created with `Status = Scheduled`, `ScheduledFor = next business day` on approval.
   No schema change.
