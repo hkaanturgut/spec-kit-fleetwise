@@ -17,6 +17,7 @@ timeline
 
 ```bash
 scripts/reset.sh
+git restore --source=main -- scripts/preflight.sh
 scripts/preflight.sh
 ```
 
@@ -86,13 +87,21 @@ Checkpoint: `s1-02-constitution`.
 
 "This describes only the change, not the whole legacy system." Checkpoint: `s1-03-specify`.
 
+> Spec Kit v1.0.13's `specify` may ask up to 3 questions itself. Reply: "Keep them as open questions in the spec; we will run clarify next." That keeps the clarify moment for Step 4.
+
 ## Step 4 (23-25): clarify
 
 ```text
 /speckit-clarify
 ```
 
-Prepared answers: no technician with the skill means create the work order unassigned and flag it; only users with the FleetManager role in the same tenant can approve. Checkpoint: `s1-04-clarify`.
+Prepared answers:
+
+- No technician with the skill: suggest the work order unassigned and flag it "no qualified technician"; never suggest another customer's technician.
+- Who can approve: only users with the FleetManager role in the same customer.
+- Several qualified technicians (clarify often asks this one itself): the one with the fewest scheduled work orders in the next 7 days; ties alphabetical.
+
+Checkpoint: `s1-04-clarify`.
 
 ## Step 5 (25-27): plan inside the existing architecture
 
@@ -104,7 +113,7 @@ Prepared answers: no technician with the skill means create the work order unass
 /speckit-tasks
 ```
 
-Then always `scripts/jump.sh s1-05-plan-tasks`: that checkpoint holds a plan with a known tenant-filter gap.
+Then always `scripts/jump.sh s1-05-plan-tasks`: in that checkpoint the plan's technician lookup (`TechnicianMatcher.SuggestAsync(serviceType, requiredSkill)`) is not scoped by tenant, while its Constitution Check still says PASS.
 
 ## Step 6 (27-28): analyze catches the gap
 
@@ -116,12 +125,14 @@ Then always `scripts/jump.sh s1-05-plan-tasks`: that checkpoint holds a plan wit
 Fix this at the source: update plan.md and data-model.md so every dispatcher query and command is scoped by TenantId. Do not edit tasks.md by hand.
 ```
 
+Expected: one **CRITICAL** constitution finding (Principle II: technician lookup not tenant-scoped, and the plan wrongly marks it PASS) plus a HIGH coverage gap for FR-010. See [reference outputs](../demo/reference-outputs.md).
+
 Then `/speckit-tasks` and `/speckit-analyze` again: no critical findings.
 
 ## Step 7 (28-32): implement and converge
 
 ```text
-/speckit-implement Phase 1 and Phase 2 only
+/speckit-implement Phases 1 to 3 only (User Story 1, the MVP)
 ```
 
 ```bash
@@ -130,6 +141,15 @@ dotnet test
 
 ```text
 /speckit-converge
+```
+
+Expected: 9 new tests, 24 in total, all green. `/speckit-converge` appends one real gap as T026 (a non-existent tenant gets 200 instead of 400).
+
+**Punchline to show live:**
+
+```bash
+curl -s localhost:5080/api/reports/overdue | jq .count                       # legacy rule: 4 vehicles, all tenants
+curl -s localhost:5080/api/dispatch -H "X-Tenant-Id: 1" | jq '[.lines[].vehicleId] | unique | length'   # schedules: 24, tenant 1 only
 ```
 
 Checkpoint: `s1-06-implement`.
@@ -141,9 +161,14 @@ Show a PR opened by the Copilot coding agent from a task issue (created with `/s
 ## Workflow automation (37-42)
 
 ```bash
+git restore --source=main -- workflows/sdd-autopilot/workflow.yml scripts/preflight.sh
 specify workflow add --dev ./workflows/sdd-autopilot   # once, before the session
 specify workflow list
 ```
+
+Run these commands after the last checkpoint jump. Historical tags intentionally
+keep their original tooling; restoring these two files takes the maintained
+workflow and preflight fixes from `main` without changing any tag.
 
 Add one line to `spec.md`:
 
@@ -156,7 +181,20 @@ python3 scripts/speckit_state.py explain
 specify workflow run sdd-autopilot -i until=analyze
 ```
 
-Narrate: specify skipped, clarify skipped, plan ran, tasks ran, analyze ran, paused at the plan gate. Type `approve`.
+Narrate: specify skipped, clarify skipped, plan ran, tasks ran, analyze ran,
+paused at the plan gate. Inspect the diffs before approving: the tenant setting
+must appear in the design, and tasks must cover the default and two tenants with
+different settings. Existing completed tasks and T026 must remain intact.
+Do not approve if analyze reports critical findings or FR-012 remains uncovered.
+
+In a non-interactive run the gate pauses. After reviewing:
+
+```bash
+specify workflow resume <run_id> -i approval=approve
+```
+
+If a critical gap remains, reject with `-i approval=reject`, fix the source
+artifacts, and start a new workflow run. Stamps are written only after approval.
 
 ```bash
 git diff --stat
@@ -164,3 +202,7 @@ specify workflow status
 ```
 
 Checkpoint: `s1-07-workflow`. See [workflow-automation.md](workflow-automation.md).
+
+The measured local Copilot run took 6m03s to reach the review gate, longer than
+this five-minute segment. Pre-run it and show the diffs, or use the fallback
+recording. Do not approve an unchanged plan just to meet the clock.

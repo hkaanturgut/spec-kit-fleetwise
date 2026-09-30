@@ -7,10 +7,11 @@
 ## Summary
 
 Give fleet managers a dispatcher that lists every vehicle whose scheduled service is overdue or due
-within 7 days, suggests a work order with a qualified technician, and books nothing until a
-FleetManager approves. Technically: a new `DispatcherService` in the existing service layer computes
-due status from `MaintenanceSchedules` and `MaintenanceRecords`, a `DispatchController` exposes it
-under `/api/dispatch`, and a new `DispatchDecision` entity records approvals and rejections. The
+within the tenant's configured window (default 7 days), suggests a work order with a qualified
+technician, and books nothing until a FleetManager approves. Technically: a new `DispatcherService`
+in the existing service layer computes due status from `MaintenanceSchedules` and
+`MaintenanceRecords` using the requesting `Tenant.OverdueWindowDays`, a `DispatchController` exposes
+it under `/api/dispatch`, and a new `DispatchDecision` entity records approvals and rejections. The
 existing API and the legacy overdue report stay unchanged.
 
 ## Technical Context
@@ -46,7 +47,9 @@ existing API and the legacy overdue report stay unchanged.
 | V. Configuration and Secrets | No secrets; "today" and "next business day" come from `IClock` | PASS |
 
 Post-design re-check: PASS. `/speckit-analyze` found the technician lookup unscoped (C1); fixed here and in
-data-model.md so every query in this feature takes `tenantId`.
+data-model.md so every query in this feature takes `tenantId`. FR-012 (configurable overdue window)
+added `Tenant.OverdueWindowDays`; `DispatcherService` loads the tenant row by `tenantId` once per
+request. `TenantContext` only parses headers. No new principle impact.
 
 ## Project Structure
 
@@ -70,7 +73,7 @@ src/FleetWise.Api/
 ├── Controllers/
 │   └── DispatchController.cs        # NEW: /api/dispatch endpoints
 ├── Models/
-│   ├── Entities.cs                  # + DispatchDecision entity
+│   ├── Entities.cs                  # + DispatchDecision entity, + Tenant.OverdueWindowDays
 │   └── Dispatch.cs                  # NEW: DispatchLine, TechnicianSuggestion DTOs
 ├── Services/
 │   ├── DispatcherService.cs         # NEW: due calculation, approve, reject
@@ -93,7 +96,8 @@ the controller → service → `DbContext` layering already used by `VehiclesCon
 
 - **Due calculation** (per vehicle, per schedule for its vehicle class): distance since the last
   record of that service type and days since it. Overdue when either exceeds the interval; due soon
-  when the date falls due within 7 days. No history means due now, flagged "no history".
+  when the date falls due within the tenant's `OverdueWindowDays` (default 7, FR-012). No history
+  means due now, flagged "no history".
 - **Technician suggestion**: `TechnicianMatcher.SuggestAsync(tenantId, requiredSkill)` loads the
   tenant's technicians whose `Skills` include the required skill, then picks the one with the fewest
   scheduled work orders in the next 7 days, ties alphabetical. None qualified means unassigned and

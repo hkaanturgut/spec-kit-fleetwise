@@ -135,3 +135,36 @@ T008, T009, T010, T011 can be written in parallel (same file, independent test m
 ## Phase 7: Convergence
 
 - [ ] T026 Return 400 when `X-Tenant-Id` does not match an existing tenant (today a non-existent tenant gets 200 with an empty list) per contracts/dispatch-api.md (partial)
+
+---
+
+## Phase 8: FR-012 - Configurable overdue window per tenant
+
+**Why**: spec.md added FR-012 ("The overdue window is configurable per tenant (default 7 days)")
+after US1 shipped. `DispatcherService` currently uses a hardcoded `DueSoonDays = 7` constant
+(src/FleetWise.Api/Services/DispatcherService.cs) instead of a per-tenant value, and `Tenant` (per
+data-model.md "Existing entities touched") has no `OverdueWindowDays` field yet.
+
+**Independent Test**: Two tenants with different `OverdueWindowDays` (e.g. 7 and 3) see different
+due-soon cutoffs for the same days-until-due value; a tenant with no explicit value defaults to 7.
+
+### Tests for FR-012
+
+- [ ] T027 [P] Failing test: a service due in 5 days is `DueSoon` for a tenant with
+  `OverdueWindowDays = 7` but not listed at all for a tenant with `OverdueWindowDays = 3`
+  (same days-until-due, two tenants) in tests/FleetWise.Tests/DispatcherServiceTests.cs
+- [ ] T028 [P] Failing test: `Tenant.OverdueWindowDays` defaults to `7` per data-model.md ("+
+  `OverdueWindowDays` (int, default `7`)") when not explicitly set, in
+  tests/FleetWise.Tests/DispatcherServiceTests.cs
+
+### Implementation for FR-012
+
+- [ ] T029 Add `OverdueWindowDays` (int, default `7`) to `Tenant` in
+  src/FleetWise.Api/Models/Entities.cs, and set it in the seed tenants in
+  src/FleetWise.Api/Data/SeedData.cs
+- [ ] T030 Replace the hardcoded `DueSoonDays` constant in
+  src/FleetWise.Api/Services/DispatcherService.cs with the requesting tenant's
+  `OverdueWindowDays` (load the `Tenant` row for `tenantId` in `GetLinesAsync`, per data-model.md's
+  rule "days since last service > `IntervalDays - tenant.OverdueWindowDays`")
+
+**Checkpoint**: FR-012 covered; US1's due-soon cutoff is per-tenant everywhere it's read.

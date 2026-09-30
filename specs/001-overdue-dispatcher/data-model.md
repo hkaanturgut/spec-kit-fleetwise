@@ -41,7 +41,8 @@ Records every approval or rejection (FR-008).
 ## Rules
 
 - A line exists for each (vehicle, schedule) pair where distance since last service > `IntervalKm`,
-  or days since last service > `IntervalDays - 7`.
+  or days since last service > `IntervalDays - tenant.OverdueWindowDays` (FR-012; default 7,
+  per-tenant).
 - `AlreadyHandled` when a `Draft` or `Scheduled` work order exists for the same vehicle and service
   type (FR-005).
 - Technician selection: `TechnicianMatcher.SuggestAsync(tenantId, requiredSkill)` returns the
@@ -52,6 +53,9 @@ Records every approval or rejection (FR-008).
 
 ## Existing entities touched
 
+- `Tenant`: + `OverdueWindowDays` (int, default `7`) (FR-012). `DispatcherService` loads the
+  tenant row by the resolved `tenantId`; `TenantContext` only parses headers. No new endpoint to set it (out of scope; seeded
+  per tenant like other demo data).
 - `WorkOrder`: created with `Status = Scheduled`, `ScheduledFor = next business day` on approval.
   No schema change.
 - `FleetWiseDbContext`: adds `DbSet<DispatchDecision>`; `Outcome` stored as string like

@@ -21,18 +21,25 @@ flowchart LR
 
 ## Quick start
 
-Prerequisites: .NET 8 SDK, Python 3.11+, [uv](https://docs.astral.sh/uv/), Git, VS Code with GitHub Copilot. Optional: [GitHub Copilot CLI](https://docs.github.com/copilot/how-tos/set-up/install-copilot-cli) (for workflow runs) and the GitHub CLI.
+Prerequisites: .NET 8 SDK **8.0.400 or later in the 8.0 line** (see `global.json`), Python 3.11+, [uv](https://docs.astral.sh/uv/), Git, VS Code with GitHub Copilot. Optional: [GitHub Copilot CLI](https://docs.github.com/copilot/how-tos/set-up/install-copilot-cli) (for workflow runs) and the GitHub CLI.
 
 ```bash
 git clone https://github.com/hkaanturgut/spec-kit-fleetwise.git
 cd spec-kit-fleetwise
 scripts/install-tools.sh     # installs the pinned Spec Kit version (.speckit-version)
 scripts/reset.sh             # branch demo-live at the starting checkpoint
+git restore --source=main -- scripts/preflight.sh  # current check, without moving historical tags
 scripts/preflight.sh         # green/red readiness check
 dotnet run --project src/FleetWise.Api   # Swagger at http://localhost:5080/swagger
 ```
 
 Then follow [docs/demo-guide.md](docs/demo-guide.md). Every prompt is copy-paste ready.
+
+Check `dotnet --version` **inside this repository** before rehearsal. An older
+8.0 SDK or a .NET 9 SDK installed elsewhere does not satisfy `global.json`.
+If SDK resolution fails, check `which dotnet` and `dotnet --list-sdks`; select the
+compatible installation on your PATH rather than weakening the repository pin.
+`reset.sh` and `jump.sh` discard local files: save any work first.
 
 ## The spec-driven flow
 
@@ -71,7 +78,7 @@ gitGraph
     commit id: "spec change" tag: "s1-07-workflow"
 ```
 
-> Tags `s1-01` to `s1-07` are cut from a recorded dry run. Until then, only `s1-00-start` exists.
+> The checkpoints were recorded in a full dry run with Spec Kit v1.0.13. Expected AI outputs for each step are in [demo/reference-outputs.md](demo/reference-outputs.md).
 
 ## Repository map
 

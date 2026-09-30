@@ -65,6 +65,14 @@ git add -A && git commit -qm "spec change"
 run -i approval=approve
 expect "D nothing stale" "/speckit-analyze" "completed"
 
+# F: successful commands alone must not stamp artifacts as reviewed.
+cp specs/001-overdue-dispatcher/.sdd-stamps.json "$WORK/stamps-before.json"
+echo "- Managers can review a tenant's window setting." >> specs/001-overdue-dispatcher/spec.md
+run
+expect "F no approval leaves artifacts stale" "/speckit-plan /speckit-tasks /speckit-analyze" "paused"
+cmp "$WORK/stamps-before.json" specs/001-overdue-dispatcher/.sdd-stamps.json
+python3 scripts/speckit_state.py state | python3 -c 'import json,sys; s=json.load(sys.stdin); assert s["plan_stale"] and s["tasks_stale"], s'
+
 # E: open question in the spec -> pauses at the clarify gate before anything else.
 echo "[NEEDS CLARIFICATION: who can approve a work order?]" >> specs/001-overdue-dispatcher/spec.md
 run -i approval=approve

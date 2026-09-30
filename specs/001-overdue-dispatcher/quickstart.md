@@ -34,4 +34,8 @@ dotnet run --project src/FleetWise.Api
 4. **Approval (US3)**: approve a line with `X-User-Role: FleetManager` and expect `201`. The line
    then shows `AlreadyHandled`. The same request without the role returns `403`.
 
+5. **Per-tenant overdue window (FR-012)**: seed tenant 1 with `OverdueWindowDays = 7` and tenant 2
+   with `OverdueWindowDays = 14`. A service due in 10 days shows for tenant 2 (`DueSoon`) but not
+   for tenant 1.
+
 See [contracts/dispatch-api.md](./contracts/dispatch-api.md) and [data-model.md](./data-model.md).

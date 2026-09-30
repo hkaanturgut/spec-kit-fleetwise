@@ -124,6 +124,7 @@ becomes a scheduled work order.
   scheduled work orders in the next 7 days, breaking ties alphabetically by name.
 - **FR-008**: System MUST record who approved or rejected each suggestion, and when.
 - **FR-009**: Existing reports and endpoints MUST keep working unchanged.
+- **FR-012**: The overdue window is configurable per tenant (default 7 days).
 
 ### Key Entities *(include if feature involves data)*
 

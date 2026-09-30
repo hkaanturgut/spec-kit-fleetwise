@@ -26,8 +26,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: shellcheck -S warning scripts/*.sh tests/workflow/*.sh tests/workflow/stub-copilot
+      - run: shellcheck -S warning scripts/*.sh tests/preflight.sh tests/workflow/*.sh tests/workflow/stub-copilot
       - run: python3 -m py_compile scripts/speckit_state.py
+      - run: bash tests/preflight.sh
 
   workflow:
     name: Rehearse sdd-autopilot workflow (stub Copilot)

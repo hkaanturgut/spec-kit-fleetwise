@@ -40,3 +40,13 @@
 - **Rationale**: Covers the "approved twice at the same moment" edge case in a single-instance demo.
 - **Alternatives considered**: Unique index (rejected: completed work orders must be allowed to
   repeat).
+
+## R6. Configurable overdue window (FR-012)
+
+- **Decision**: Add `OverdueWindowDays` (int, default 7) to the existing `Tenant` entity; the
+  dispatcher reads it for the requesting tenant instead of a hard-coded `7`.
+- **Rationale**: The window is per-tenant data, not a deployment setting. `DispatcherService`
+  will load the tenant row by `tenantId`; `TenantContext` only parses headers. A new column is
+  the smallest change and needs no new table or endpoint.
+- **Alternatives considered**: A separate `TenantSettings` table (rejected: one column doesn't
+  justify a new entity); an app-config value (rejected: spec requires per-tenant, not per-deployment).
