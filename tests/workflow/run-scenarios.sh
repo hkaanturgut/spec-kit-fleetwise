@@ -44,6 +44,7 @@ expect() {
 }
 
 # A: template constitution -> the run stops at the constitution gate.
+cp .specify/templates/constitution-template.md .specify/memory/constitution.md
 run -i approval=approve
 expect "A no constitution stops" "" "paused"
 
