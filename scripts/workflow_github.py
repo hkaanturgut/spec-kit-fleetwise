@@ -16,7 +16,10 @@ import uuid
 REPO = "hkaanturgut/spec-kit-fleetwise"
 ACCOUNT = "hkaanturgut"
 TRAILER = "Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
-TASK = re.compile(r"^\s*[-*] \[([ xX])\] (T\d{3,})\s+(.+)$", re.MULTILINE)
+TASK = re.compile(
+    r"^[ \t]*[-*] \[([ xX])\] (T\d{3,})[ \t]+(.+(?:\n[ \t]+\S[^\n]*)*)$",
+    re.MULTILINE,
+)
 
 
 def run(*args: str, input_text: str | None = None) -> str:
@@ -119,15 +122,37 @@ def marker(value: dict, task_id: str) -> str:
 
 
 def issue_map(value: dict, tasks: list[tuple[str, str, str]]) -> dict[str, dict]:
-    existing = [issue for issue in pages("issues?state=all&per_page=100") if "pull_request" not in issue]
     mapping = {}
+    links_path = Path(value["feature"]) / "issue-links.json"
+    saved = json.loads(links_path.read_text()) if links_path.exists() else {}
     for _, task_id, _ in tasks:
+        if task_id in saved:
+            number = saved[task_id]["number"]
+            if not isinstance(number, int) or number < 1:
+                raise RuntimeError(f"Invalid saved issue number for {task_id}")
+            issue = api(f"issues/{number}")
+            if "pull_request" in issue or marker(value, task_id) not in (issue.get("body") or ""):
+                raise RuntimeError(f"Saved issue for {task_id} does not belong to this delivery.")
+            mapping[task_id] = issue
+    if len(mapping) == len(tasks):
+        return mapping
+    existing = [issue for issue in pages("issues?state=all&per_page=100") if "pull_request" not in issue]
+    for _, task_id, _ in tasks:
+        if task_id in mapping:
+            continue
         matches = [issue for issue in existing if marker(value, task_id) in (issue.get("body") or "")]
         if len(matches) > 1:
             raise RuntimeError(f"Multiple GitHub issues match {task_id}; resolve duplicates before resuming.")
         if matches:
             mapping[task_id] = matches[0]
     return mapping
+
+
+def write_links(directory: Path, mapping: dict[str, dict]) -> dict:
+    links = {task_id: {"number": issue["number"], "url": issue["html_url"]}
+             for task_id, issue in mapping.items()}
+    (directory / "issue-links.json").write_text(json.dumps(links, indent=2) + "\n")
+    return links
 
 
 def issues(create: bool) -> dict:
@@ -143,18 +168,18 @@ def issues(create: bool) -> dict:
         for _, task_id, description in tasks:
             if task_id not in mapping:
                 mapping[task_id] = api("issues", {
-                    "title": f"{task_id}: {description}"[:256],
+                    "title": f"{task_id}: {description.splitlines()[0]}"[:256],
                     "body": f"{marker(value, task_id)}\n\nFeature: `{value['feature']}`\n"
                             f"Branch: `{value['branch']}`\n\n{description}\n\n"
                             "Tracked by the delivery workflow. Close through the reviewed PR, not generation.",
                     "labels": ["demo"],
                 })
+                # List endpoints can lag behind creation; save each returned ID immediately.
+                write_links(directory, mapping)
     missing = [task_id for _, task_id, _ in tasks if task_id not in mapping]
     if missing:
         raise RuntimeError(f"Missing GitHub issues for {missing}; resume the taskstoissues stage.")
-    links = {task_id: {"number": issue["number"], "url": issue["html_url"]}
-             for task_id, issue in mapping.items()}
-    (directory / "issue-links.json").write_text(json.dumps(links, indent=2) + "\n")
+    links = write_links(directory, mapping)
     print(json.dumps(links, indent=2))
     return links
 

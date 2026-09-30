@@ -26,6 +26,90 @@ flowchart LR
 
 ## Quick start
 
+## The ideas behind this demo
+
+### What is spec-driven development?
+
+Spec-driven development (SDD) is a way to build software from an explicit,
+reviewable description of intended behavior. The team agrees on the problem,
+users, constraints, acceptance criteria, and important decisions before asking
+someone or something to implement them. The specification is a living contract:
+when the intent changes, the design, tasks, tests, and code that depend on it
+can be updated together.
+
+SDD does not mean writing a large document before writing any code. It means
+making the next meaningful change understandable and testable. In a brownfield
+system, start with one bounded slice, inspect the existing conventions, record
+the decisions that matter, and leave the rest of the legacy system alone.
+
+### SDLC vs. AI-DLC
+
+The software development life cycle (SDLC) describes the stages a team uses to
+deliver and operate software: discover requirements, design, build, test,
+release, and learn from production. It is a useful map for the whole product
+lifecycle and applies whether the work is manual or AI-assisted.
+
+AI-DLC describes how those stages change when AI can generate designs, code,
+tests, and documentation at high speed. The bottleneck moves from producing
+artifacts to establishing intent, supplying context, checking correctness, and
+approving risk. AI-DLC therefore emphasizes explicit specifications, small
+reviewable increments, traceability, and human gates at decisions that affect
+users, security, data, or architecture.
+
+SDD is the practical bridge between them. It gives AI-DLC a stable source of
+truth while preserving the familiar SDLC stages:
+
+| SDLC concern | AI-DLC practice | Spec Kit evidence |
+| --- | --- | --- |
+| Requirements | Make intent and constraints explicit | Constitution, spec, clarification decisions |
+| Design | Ask AI to work inside the existing architecture | Plan, data model, contracts, tasks |
+| Construction | Generate bounded changes from approved tasks | Implementation, tests, code review |
+| Verification | Check artifacts and behavior continuously | Analysis findings, test results, convergence report |
+| Change management | Revisit only the stages affected by a requirement change | Updated artifacts and workflow state |
+
+### Why practice SDD in the AI era?
+
+AI makes implementation cheaper, but it does not make ambiguous requirements
+safe. Without a shared specification, an agent can produce a polished answer
+that silently invents a threshold, omits tenant isolation, or changes an API
+contract. Faster generation can make incorrect assumptions spread faster too.
+
+SDD helps a team:
+
+- keep humans responsible for intent, trade-offs, and acceptance;
+- give AI the context and constraints needed for useful implementation;
+- review decisions before they are buried in code;
+- trace a requirement through design, tasks, tests, and behavior;
+- recover when an agent makes a plausible but incorrect change; and
+- automate repeatable work without automating approval of unknown decisions.
+
+The goal is not more paperwork. The goal is to move important reasoning into a
+small, shared artifact that both people and AI can inspect.
+
+### What is GitHub Spec Kit?
+
+[GitHub Spec Kit](https://github.com/github/spec-kit) is an open-source toolkit
+for practicing SDD with an AI coding agent. It provides reusable commands,
+templates, and workflow support for turning intent into a constitution,
+specification, clarification decisions, technical plan, tasks, implementation,
+and verification.
+
+Spec Kit is a delivery process, not a replacement application architecture or a
+promise that AI-generated code is correct. Teams still choose the requirements,
+review the design, run the tests, and approve the change. In this repository,
+Spec Kit is applied to an existing .NET API: the team first captures current
+conventions, then adds one tenant-scoped overdue-dispatcher slice without
+rewriting FleetWise.
+
+The central loop is:
+
+```text
+intent -> specify -> clarify -> plan -> tasks -> analyze -> implement -> converge
+```
+
+Each step leaves evidence that can be reviewed or rerun. That is what makes the
+approach useful for both a human team and an AI-assisted workflow.
+
 Prerequisites: .NET 8 SDK **8.0.400 or later in the 8.0 line** (see `global.json`), Python 3.11+, [uv](https://docs.astral.sh/uv/), Git, VS Code with GitHub Copilot. The workflow segment also needs [GitHub Copilot CLI](https://docs.github.com/copilot/how-tos/set-up/install-copilot-cli). The API examples use `curl` and `jq`; the team segment uses the GitHub CLI.
 
 ```bash
