@@ -21,7 +21,7 @@ flowchart LR
     D --> E["Plan inside the<br/>existing architecture"]
     E --> F["analyze catches a<br/>constitution violation"]
     F --> G["implement + converge<br/>tests go green"]
-    G --> H["Spec change<br/>workflow reruns only<br/>what is stale"]
+    G --> H["One workflow command<br/>runs the stages<br/>with human review gates"]
 ```
 
 ## Quick start
@@ -121,9 +121,9 @@ git restore --source=main -- README.md scripts/jump.sh scripts/reset.sh scripts/
 ```
 
 **Readiness limits:** the recorded checkpoints are available, but backup video
-clips and the coding-agent PR segment still need preparation. The real workflow
-rehearsal took 6m03s, beyond its five-minute slot. Do not describe either item as
-finished preparation.
+clips and the coding-agent PR segment still need preparation. The workflow segment
+demonstrates starting the pipeline and reviewing its gates, not finishing an
+AI-generated feature within five minutes.
 
 ### Hook: prompt-only coding (0-3)
 
@@ -510,113 +510,104 @@ present an empty list as a completed coding-agent demonstration.
 
 ### Workflow automation (37-42)
 
-**Say:** "Automate the execution between decisions, not the approval of unknown decisions."
+**Say:** "We just ran the stages by hand. Now one command runs them for us.
+We still own the decisions, but we do not have to type every slash command."
 
-**Stop Terminal B's API with Ctrl+C.** Save any live work you want to keep before
-loading the workflow starting checkpoint.
+Use Spec Kit's built-in **`speckit`** workflow. It is already installed at the
+initialized checkpoints; no custom YAML or state-tracking explanation is needed.
 
-**Terminal A:**
+```mermaid
+flowchart LR
+    START["One workflow command"] --> S["Specify"]
+    S --> RS{"Review spec"}
+    RS -- approve --> P["Plan"]
+    P --> RP{"Review plan"}
+    RP -- approve --> T["Tasks"]
+    T --> I["Implement"]
+    RS -- reject --> STOP["Stop"]
+    RP -- reject --> STOP
+```
+
+**Prepare once before this segment, in an integrated terminal.** A separate
+working directory starts at the initialized, constitution-ready checkpoint.
+Your earlier demo work and open README stay untouched:
 
 ```bash
-scripts/jump.sh s1-06-implement
+WORKFLOW_DEMO="$(mktemp -d "${TMPDIR:-/tmp}/fleetwise-workflow.XXXXXX")"
+git worktree add --detach "$WORKFLOW_DEMO" s1-02-constitution
+cd "$WORKFLOW_DEMO"
 ```
+
+**Run the pipeline, not the individual slash commands:**
 
 > [!NOTE]
-> **What:** `specify workflow add --dev` installs the local workflow definition.<br>
-> **When:** Before the first run, or after updating the workflow or loading a checkpoint.<br>
-> **Why:** Make the maintained `sdd-autopilot` definition available to the workflow engine.
+> **What:** `specify workflow run speckit` calls Copilot for specify, plan, tasks, and implement, with two review gates.<br>
+> **When:** The repository and constitution are ready and you want the workflow to coordinate a new change.<br>
+> **Why:** Replace repeated slash commands with one pipeline invocation while keeping human decisions.
 
 ```bash
-specify workflow add --dev ./workflows/sdd-autopilot
+specify workflow run speckit \
+  -i integration=copilot \
+  -i spec="Extend the existing GET /health endpoint to return the fixed service name FleetWise.Api alongside the existing status value ok. Preserve HTTP 200, the existing status field, and anonymous access. Add automated regression coverage. Keep all other endpoints, the database, dependencies, and architecture unchanged."
 ```
+
+This intentionally tiny change keeps attention on orchestration. Normally a
+change this small can use a normal PR; it does not require the full SDD cycle.
+
+**What to show, not a specific generated result:**
+
+1. The terminal starts the **specify** stage without a slash command.
+2. At **Review spec**, open the generated `spec.md` from the feature path printed
+   in the terminal. Review it, then choose **approve** to let planning run.
+3. At **Review plan**, review `plan.md`, then choose **approve**. The workflow
+   runs **tasks** and **implement** without another slash command.
+
+Choose **reject** if the scope or design is wrong. Leave terminal input connected:
+do **not** add `< /dev/null` to this interactive demonstration.
+The point is the pipeline and its gates, not identical generated files or a
+finished feature during the five-minute segment. If generation is slow, explain
+the diagram and let the run continue; finish the reviews during rehearsal.
+
+**Say:** "The workflow coordinates the work. Copilot executes each stage.
+People approve intent and design, then review the resulting code before merging."
+
+The built-in workflow has no separate clarify, analyze, test, or converge stages.
+Teams can add those checks; the [advanced example](docs/workflow-automation.md)
+shows how. A completed pipeline is not proof that the generated code is correct.
+Copilot has broad tool permissions by default; a worktree protects against
+accidental file overlap, **not** against unrestricted tool access.
+
+<details>
+<summary>Recovery only: inspect or resume a paused run</summary>
+
+Run these in the same workflow working directory.
 
 > [!NOTE]
-> **What:** `specify workflow list` displays installed workflows.<br>
-> **When:** After installation or when checking whether a workflow is available.<br>
-> **Why:** Confirm the workflow ID before starting a run; listing does not execute it.
-
-```bash
-specify workflow list
-```
-
-In VS Code, append this requirement under Functional Requirements in
-`specs/001-overdue-dispatcher/spec.md`, then save:
-
-```text
-- **FR-012**: The overdue window is configurable per tenant (default 7 days).
-```
-
-**Terminal A:**
-
-> [!NOTE]
-> **What:** `speckit_state.py explain` reports this demo's missing or stale artifacts.<br>
-> **When:** After a spec edit or checkpoint jump, before running automation.<br>
-> **Why:** Preview which stages need work. This is a repository helper, not a built-in Spec Kit command.
-
-```bash
-python3 scripts/speckit_state.py explain
-```
-
-> [!NOTE]
-> **What:** `specify workflow run` starts the installed workflow; `until=analyze` stops short of application implementation.<br>
-> **When:** A changed spec needs its design and tasks refreshed and checked.<br>
-> **Why:** Automate repetitive stages while retaining review. With standard input closed, a human gate pauses the run rather than waiting for terminal input.
-
-```bash
-specify workflow run sdd-autopilot -i until=analyze < /dev/null
-```
-
-**Expected:** specify and clarify skip; plan/tasks update; analyze runs; the
-review gate pauses. It does not implement FR-012 yet.
-The recorded real Copilot run took **6m03s**, so pre-run it for a five-minute
-presentation slot, or use the checkpoint fallback below.
-
-**Review before approval:**
-
-```bash
-git --no-pager diff --stat
-git --no-pager diff -- specs/001-overdue-dispatcher
-```
-
-> [!NOTE]
-> **What:** `specify workflow status` shows run progress and the step where execution stopped.<br>
-> **When:** Checking a completed, paused, or failed run.<br>
-> **Why:** Distinguish a review pause from a failure before deciding what to do next.
+> **What:** `specify workflow status` shows saved runs and their current stage.<br>
+> **When:** A run has paused or failed.<br>
+> **Why:** Find its run ID and distinguish an approval pause from an error.
 
 ```bash
 specify workflow status
 ```
 
-The design must contain the per-tenant window; tasks must cover the default and
-two tenants with different settings. Preserve completed tasks and T026. Reject
-if critical findings or uncovered changed requirements remain.
-
-**After review, replace `<run_id>` with the ID printed by the workflow:**
-
 > [!NOTE]
-> **What:** `specify workflow resume` continues a saved run; `approval=approve` answers its plan-review gate.<br>
-> **When:** You have inspected the diffs and findings and accept the changed requirements' coverage.<br>
-> **Why:** Continue from the checkpoint in execution, rather than starting over. Approval is your decision, not an automatic correctness check.
+> **What:** `specify workflow resume` continues the saved run and prompts at its review gate.<br>
+> **When:** Resuming a paused run, or retrying after diagnosing and fixing a failure.<br>
+> **Why:** Continue without restarting completed stages. Replace `<run_id>` with the printed ID.
 
 ```bash
-specify workflow resume <run_id> -i approval=approve < /dev/null
+specify workflow resume <run_id>
 ```
 
-Use `approval=reject` instead if the artifacts are not ready. Stamps are written
-only after approval. An exit code of zero is not proof that an AI changed the files.
-For the optional build loop, use `until=converge` when starting the run; see the
-[automation Q&A](#can-it-run-automatically-without-someone-watching-every-step).
+For a fresh attempt, repeat the preparation block **from the original demo
+checkout** to create a new working directory at `s1-02-constitution`; keep the
+previous run for inspection. Do not reset your earlier live work.
+Record this workflow segment during rehearsal using the
+[backup checklist](demo/backups.md). The older `s1-07-workflow` result demonstrates
+the custom workflow, not this built-in pipeline.
 
-**Recorded checkpoint fallback:**
-
-```bash
-scripts/jump.sh s1-07-workflow
-git --no-pager diff s1-06-implement s1-07-workflow -- specs/001-overdue-dispatcher
-```
-
-Narrate this as a prepared result. It is not a new live run. The separate
-`rehearsal/local-ready` branch preserves the later real Copilot-generated result
-and review corrections; the original tags remain unchanged.
+</details>
 
 ### First 30 days (42-45)
 
@@ -644,7 +635,7 @@ flowchart LR
 ```
 
 Checkpoint files are available now. Video clips still need recording: hook,
-constitution, analyze finding, implementation/convergence, and workflow change.
+constitution, analyze finding, implementation/convergence, and workflow pipeline.
 Never force-update the published `s1-*` tags during practice.
 
 ## Q&A: everyday development
@@ -723,7 +714,7 @@ three gates: intent, design, and implementation.
 | --- | --- | --- |
 | Custom agent | A named role with instructions and host-supported tool/model configuration | A reviewer configured with read-only tools |
 | Skill | Reusable task instructions and supporting resources, loaded by the active agent | `/speckit-plan` |
-| Workflow | Ordered steps, conditions, checks, and approval gates | `sdd-autopilot` |
+| Workflow | Ordered steps, conditions, checks, and approval gates | Built-in `speckit`; optional custom `sdd-autopilot` |
 
 Spec Kit v1.0.13 defaults to `.github/skills/speckit-*/SKILL.md` for new Copilot
 projects. The `.github/agents/*.agent.md` plus companion prompt layout is still
@@ -746,94 +737,34 @@ described in a role name.
 
 ### How do we use Spec Kit workflows?
 
-Workflows chain commands, conditions, shell checks, and review gates. This repo's
-`sdd-autopilot` uses Spec Kit's built-in workflow engine with a repository-specific
-definition. It checks state, skips current stages, and reconciles stale plan/tasks.
+**Run a workflow instead of typing each slash command.** The
+[live example above](#workflow-automation-37-42) uses the built-in `speckit`
+workflow: specify, review spec, plan, review plan, tasks, implement.
+It still calls Copilot and the Spec Kit procedures underneath.
 
-Use an initialized feature on an isolated worktree or feature branch, with
-clarification questions resolved. Use the current workflow from `main`; see the
-[runbook above](#workflow-automation-37-42) when starting from a historical tag.
+| Start here | Customize later |
+| --- | --- |
+| Built-in `speckit`: automatic sequencing with two review gates | This repo's `sdd-autopilot`: skip unchanged work, analyze, and optionally implement/test/converge |
+| One workflow command, then approve or reject at the gates | Team-specific checks, conditions, and bounded loops |
 
-> [!NOTE]
-> **What:** Install the local `sdd-autopilot` workflow with `specify workflow add --dev`.<br>
-> **When:** Setting up automation or refreshing its definition.<br>
-> **Why:** Run the reviewed repository workflow, not an assumed or missing installation.
-
-```bash
-specify workflow add --dev ./workflows/sdd-autopilot
-```
-
-> [!NOTE]
-> **What:** Start the workflow with `until=converge`, enabling its bounded implementation/test/convergence loop after approval.<br>
-> **When:** You intend to build the planned work, not just review the design.<br>
-> **Why:** Reduce manual orchestration while keeping human gates and a three-iteration limit. Test failures still stop this workflow.
-
-```bash
-specify workflow run sdd-autopilot -i until=converge < /dev/null
-```
-
-The non-interactive run pauses at the plan-review gate. Review the generated
-diffs and analyze report, then approve:
-
-> [!NOTE]
-> **What:** Inspect execution state with `specify workflow status`.<br>
-> **When:** A run has paused or you need to identify its current step.<br>
-> **Why:** Understand the required intervention before resuming.
-
-```bash
-specify workflow status
-```
-
-> [!NOTE]
-> **What:** Resume the saved run and approve its plan gate.<br>
-> **When:** Review is complete and you are ready for the remaining steps, including implementation in this example.<br>
-> **Why:** Delegate execution without delegating the decision to accept the plan.
-
-```bash
-specify workflow resume <run_id> -i approval=approve < /dev/null
-```
-
-Use `until=analyze` instead when you only want design review, not implementation.
-Use `approval=reject` when the artifacts are not ready. Input fingerprints are
-stamped only after approval.
+You do not need a custom workflow to demonstrate automation. The optional
+[advanced guide](docs/workflow-automation.md) covers our custom definition,
+state checks, and its separate resume/approval inputs.
 
 ### Can it run automatically without someone watching every step?
 
-**Yes between decision points, not without accountability.**
+**Yes. People review decisions; the workflow handles execution between them.**
+You do not need to watch every tool call. Return at the spec and plan gates,
+then review the code and test evidence before merging.
 
-```mermaid
-flowchart LR
-    H1["Human<br/>Intent + clarification"] --> A1["Automatic<br/>Stale plan/tasks + analyze"]
-    A1 --> H2{"Human reviews<br/>diffs + findings"}
-    H2 -- reject --> FIX["Resolve gaps<br/>Start a new run"]
-    FIX --> A1
-    H2 -- approve --> A2["Automatic<br/>Stamp, implement, test, converge<br/>Up to 3 iterations"]
-    A2 -- checks pass --> H3["Human<br/>Review remaining tasks + code PR"]
-    A2 -- failure --> STOP["Stop<br/>Diagnose before resuming"]
-```
+Running from a terminal is not the same as scheduled CI automation. This repo's
+CI tests workflow wiring with a stub Copilot; it does not launch real unattended
+coding runs or automatically open PRs.
 
-The PR review in this diagram is a team responsibility, not an automatic PR-opening
-step in the current workflow.
-
-| Available in this repo | Not implemented here yet |
-| --- | --- |
-| State-aware execution and resumable review gates | Scheduled or issue-triggered real Copilot runs in GitHub Actions |
-| Bounded implement/test/converge loop | Automatic repair after a failing test command |
-| CI builds, tests, and offline workflow checks | Automatic task assignment, PR creation, and failure notifications |
-
-**Today a failing `dotnet test` stops the run.** The loop can repeat when tests
-pass and tasks remain, up to three iterations. Reaching that limit does not prove
-all work is complete. CI uses a stub Copilot for workflow checks, not a live coding agent.
-
-For unattended execution, use an isolated runner with narrowly scoped credentials,
-time/cost limits, preserved logs, and escalation on ambiguity or failure. Keep
-human merge approval initially. Do not pre-approve unseen plans just to remove
-the pauses.
-
-The current Copilot integration enables broad tool permissions by default
-(`--yolo`, controlled by `SPECKIT_COPILOT_ALLOW_ALL_TOOLS`).
-**A feature branch is not a security sandbox.** Review the
-[workflow automation guide](docs/workflow-automation.md) before running it unattended.
+For unattended execution, use an isolated runner, narrowly scoped credentials,
+time/cost limits, saved logs, and escalation on failure. Do not pre-approve unseen
+plans simply to remove pauses. See the
+[advanced guide](docs/workflow-automation.md) for the custom workflow's limits.
 
 ## Checkpoints
 

@@ -1,5 +1,11 @@
 # Workflow automation: `sdd-autopilot`
 
+**Start with the [one-command built-in workflow demo](../README.md#workflow-automation-37-42).**
+It runs specify, plan, tasks, and implement with spec/design review gates.
+This page is the optional advanced example: a custom workflow for incremental
+changes, analysis, and a bounded build loop. Its inputs and approval commands
+are specific to `sdd-autopilot`, not the built-in `speckit` workflow.
+
 [Spec Kit workflows](https://github.github.io/spec-kit/reference/workflows.html) are Spec Kit's pipeline engine: YAML that chains Spec Kit commands, shell steps, conditions, loops, and human gates. `sdd-autopilot` is a workflow that checks the repo first and runs only the SDD steps that are missing or stale.
 
 ## How it decides
