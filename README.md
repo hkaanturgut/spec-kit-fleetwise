@@ -180,6 +180,14 @@ bug fixes, and team adoption.
 
 ```bash
 git switch -c "adopt-spec-kit-$(date +%Y%m%d-%H%M%S)"
+```
+
+> [!NOTE]
+> **What:** `specify init` installs Spec Kit's project files and Copilot skills in this repository.<br>
+> **When:** Once when adopting Spec Kit, before writing the constitution or a feature spec.<br>
+> **Why:** Give the agent a repeatable process without replacing the existing application. `--force` permits setup in a non-empty directory; review the resulting changes.
+
+```bash
 specify init --here --force --integration copilot
 git status --short
 ```
@@ -212,6 +220,11 @@ layer, record its violations as debt, and explicitly agree on tenant isolation."
 
 **Copilot Chat:**
 
+> [!NOTE]
+> **What:** `/speckit-constitution` records the team's agreed engineering principles.<br>
+> **When:** At adoption, or when the team deliberately changes its rules, not for every ticket.<br>
+> **Why:** Make constraints such as tenant isolation explicit so later design and implementation can be reviewed against them.
+
 ```text
 /speckit-constitution Capture only principles that are true in this codebase today or that the team agreed now:
 1. Data access goes through the service layer; controllers never use DbContext directly. The two existing violations are known debt, not allowed patterns.
@@ -239,6 +252,11 @@ scripts/jump.sh s1-02-constitution
 
 **Copilot Chat:**
 
+> [!NOTE]
+> **What:** `/speckit-specify` turns a feature request into user stories, requirements, and acceptance criteria.<br>
+> **When:** Starting a bounded feature or behavior change that needs an explicit agreement.<br>
+> **Why:** Define what success means before the agent chooses how to implement it. A straightforward bug with clear expected behavior does not need a new feature spec.
+
 ```text
 /speckit-specify Fleet managers need an overdue-maintenance dispatcher. Show vehicles that are overdue or due within 7 days, by mileage or by date. Suggest a work order for each vehicle with the right service type and a technician who has the required skill. A manager must approve a work order before it is booked.
 ```
@@ -265,6 +283,11 @@ scripts/jump.sh s1-03-specify
 
 **Copilot Chat:**
 
+> [!NOTE]
+> **What:** `/speckit-clarify` asks targeted questions and integrates the answers into the spec.<br>
+> **When:** Requirements contain ambiguities or unresolved business decisions, ideally before planning.<br>
+> **Why:** Have people decide policy rather than letting implementation silently invent it.
+
 ```text
 /speckit-clarify
 ```
@@ -287,9 +310,19 @@ scripts/jump.sh s1-04-clarify
 
 **Copilot Chat, one command at a time:**
 
+> [!NOTE]
+> **What:** `/speckit-plan` translates the spec into a technical plan and supporting design artifacts.<br>
+> **When:** Behavior is understood, before generating implementation tasks; revisit it when requirements or design constraints change.<br>
+> **Why:** Check architecture, data contracts, and constitution compliance before investing in code.
+
 ```text
 /speckit-plan Extend the existing .NET 8 Web API and EF Core model. Reuse VehicleService and WorkOrderService, add a DispatcherService in the existing service layer, and expose endpoints under /api/dispatch. Use the existing SQLite setup locally. No new projects and no new frameworks.
 ```
+
+> [!NOTE]
+> **What:** `/speckit-tasks` converts the spec and design into an ordered implementation checklist.<br>
+> **When:** The plan is ready for review, or design changes require the task list to be reconciled.<br>
+> **Why:** Make dependencies, test work, and potential parallel tasks visible instead of asking the agent to build everything at once.
 
 ```text
 /speckit-tasks
@@ -313,6 +346,11 @@ tenant-scoped, while the plan's Constitution Check says PASS.
 
 **Copilot Chat:**
 
+> [!NOTE]
+> **What:** `/speckit-analyze` checks the spec, plan, and tasks for inconsistencies, coverage gaps, and constitution violations without fixing them.<br>
+> **When:** All three artifacts exist, before implementation and after significant artifact changes.<br>
+> **Why:** Find contradictions cheaply while they are still in the design. This is not a substitute for tests or human review.
+
 ```text
 /speckit-analyze
 ```
@@ -330,9 +368,19 @@ tenant-scoped, while the plan's Constitution Check says PASS.
 Fix this at the source: update plan.md and data-model.md so every dispatcher query and command is scoped by TenantId. Do not edit tasks.md by hand.
 ```
 
+> [!NOTE]
+> **What:** Rerun `/speckit-tasks` to reconcile the checklist with the corrected tenant-scoped design.<br>
+> **When:** After fixing the source artifacts identified by analysis.<br>
+> **Why:** Carry the design correction into implementation and test tasks, rather than leaving a stale checklist.
+
 ```text
 /speckit-tasks
 ```
+
+> [!NOTE]
+> **What:** Rerun `/speckit-analyze` against the updated artifacts.<br>
+> **When:** After regenerating tasks and before moving into implementation.<br>
+> **Why:** Verify that the original finding is resolved and the correction did not introduce another inconsistency.
 
 ```text
 /speckit-analyze
@@ -355,6 +403,11 @@ use the Step 7 recovery rather than imply the recorded implementation just ran l
 
 **Copilot Chat:**
 
+> [!NOTE]
+> **What:** `/speckit-implement` executes the planned tasks, modifying code and tests.<br>
+> **When:** The design is reviewed and critical analysis findings are resolved.<br>
+> **Why:** Build against explicit scope and dependencies. Here the phase limit keeps the live build to User Story 1, not the entire feature.
+
 ```text
 /speckit-implement Phases 1 to 3 only (User Story 1, the MVP)
 ```
@@ -366,6 +419,11 @@ dotnet test --nologo
 ```
 
 **Copilot Chat:**
+
+> [!NOTE]
+> **What:** `/speckit-converge` compares the implementation with the feature artifacts and records remaining gaps as tasks.<br>
+> **When:** After an implementation slice and its tests, or when checking whether code has caught up with the spec.<br>
+> **Why:** Passing tests alone do not prove requirement coverage. Convergence exposes unfinished behavior without pretending the feature is complete.
 
 ```text
 /speckit-converge
@@ -427,6 +485,11 @@ without leaving the README. Three gates are intent, design, and implementation.
 
 **Prepare before presenting, not during the five-minute segment:**
 
+> [!NOTE]
+> **What:** `/speckit-taskstoissues` turns feature tasks into GitHub issues.<br>
+> **When:** The task breakdown is reviewed and you are ready to distribute work.<br>
+> **Why:** Move agreed work into the team's tracking and PR process. This creates remote issues; it does not by itself assign agents or guarantee independent tasks.
+
 ```text
 /speckit-taskstoissues
 ```
@@ -456,7 +519,23 @@ loading the workflow starting checkpoint.
 
 ```bash
 scripts/jump.sh s1-06-implement
+```
+
+> [!NOTE]
+> **What:** `specify workflow add --dev` installs the local workflow definition.<br>
+> **When:** Before the first run, or after updating the workflow or loading a checkpoint.<br>
+> **Why:** Make the maintained `sdd-autopilot` definition available to the workflow engine.
+
+```bash
 specify workflow add --dev ./workflows/sdd-autopilot
+```
+
+> [!NOTE]
+> **What:** `specify workflow list` displays installed workflows.<br>
+> **When:** After installation or when checking whether a workflow is available.<br>
+> **Why:** Confirm the workflow ID before starting a run; listing does not execute it.
+
+```bash
 specify workflow list
 ```
 
@@ -469,8 +548,21 @@ In VS Code, append this requirement under Functional Requirements in
 
 **Terminal A:**
 
+> [!NOTE]
+> **What:** `speckit_state.py explain` reports this demo's missing or stale artifacts.<br>
+> **When:** After a spec edit or checkpoint jump, before running automation.<br>
+> **Why:** Preview which stages need work. This is a repository helper, not a built-in Spec Kit command.
+
 ```bash
 python3 scripts/speckit_state.py explain
+```
+
+> [!NOTE]
+> **What:** `specify workflow run` starts the installed workflow; `until=analyze` stops short of application implementation.<br>
+> **When:** A changed spec needs its design and tasks refreshed and checked.<br>
+> **Why:** Automate repetitive stages while retaining review. With standard input closed, a human gate pauses the run rather than waiting for terminal input.
+
+```bash
 specify workflow run sdd-autopilot -i until=analyze < /dev/null
 ```
 
@@ -484,6 +576,14 @@ presentation slot, or use the checkpoint fallback below.
 ```bash
 git --no-pager diff --stat
 git --no-pager diff -- specs/001-overdue-dispatcher
+```
+
+> [!NOTE]
+> **What:** `specify workflow status` shows run progress and the step where execution stopped.<br>
+> **When:** Checking a completed, paused, or failed run.<br>
+> **Why:** Distinguish a review pause from a failure before deciding what to do next.
+
+```bash
 specify workflow status
 ```
 
@@ -492,6 +592,11 @@ two tenants with different settings. Preserve completed tasks and T026. Reject
 if critical findings or uncovered changed requirements remain.
 
 **After review, replace `<run_id>` with the ID printed by the workflow:**
+
+> [!NOTE]
+> **What:** `specify workflow resume` continues a saved run; `approval=approve` answers its plan-review gate.<br>
+> **When:** You have inspected the diffs and findings and accept the changed requirements' coverage.<br>
+> **Why:** Continue from the checkpoint in execution, rather than starting over. Approval is your decision, not an automatic correctness check.
 
 ```bash
 specify workflow resume <run_id> -i approval=approve < /dev/null
@@ -649,16 +754,42 @@ Use an initialized feature on an isolated worktree or feature branch, with
 clarification questions resolved. Use the current workflow from `main`; see the
 [runbook above](#workflow-automation-37-42) when starting from a historical tag.
 
+> [!NOTE]
+> **What:** Install the local `sdd-autopilot` workflow with `specify workflow add --dev`.<br>
+> **When:** Setting up automation or refreshing its definition.<br>
+> **Why:** Run the reviewed repository workflow, not an assumed or missing installation.
+
 ```bash
 specify workflow add --dev ./workflows/sdd-autopilot
+```
+
+> [!NOTE]
+> **What:** Start the workflow with `until=converge`, enabling its bounded implementation/test/convergence loop after approval.<br>
+> **When:** You intend to build the planned work, not just review the design.<br>
+> **Why:** Reduce manual orchestration while keeping human gates and a three-iteration limit. Test failures still stop this workflow.
+
+```bash
 specify workflow run sdd-autopilot -i until=converge < /dev/null
 ```
 
 The non-interactive run pauses at the plan-review gate. Review the generated
 diffs and analyze report, then approve:
 
+> [!NOTE]
+> **What:** Inspect execution state with `specify workflow status`.<br>
+> **When:** A run has paused or you need to identify its current step.<br>
+> **Why:** Understand the required intervention before resuming.
+
 ```bash
 specify workflow status
+```
+
+> [!NOTE]
+> **What:** Resume the saved run and approve its plan gate.<br>
+> **When:** Review is complete and you are ready for the remaining steps, including implementation in this example.<br>
+> **Why:** Delegate execution without delegating the decision to accept the plan.
+
+```bash
 specify workflow resume <run_id> -i approval=approve < /dev/null
 ```
 
