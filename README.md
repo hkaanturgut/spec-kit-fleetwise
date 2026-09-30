@@ -71,7 +71,7 @@ gitGraph
     commit id: "spec change" tag: "s1-07-workflow"
 ```
 
-> Tags `s1-01` to `s1-07` are cut from a recorded dry run. Until then, only `s1-00-start` exists.
+> The checkpoints were recorded in a full dry run with Spec Kit v1.0.13. Expected AI outputs for each step are in [demo/reference-outputs.md](demo/reference-outputs.md).
 
 ## Repository map
 

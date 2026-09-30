@@ -86,13 +86,21 @@ Checkpoint: `s1-02-constitution`.
 
 "This describes only the change, not the whole legacy system." Checkpoint: `s1-03-specify`.
 
+> Spec Kit v1.0.13's `specify` may ask up to 3 questions itself. Reply: "Keep them as open questions in the spec; we will run clarify next." That keeps the clarify moment for Step 4.
+
 ## Step 4 (23-25): clarify
 
 ```text
 /speckit-clarify
 ```
 
-Prepared answers: no technician with the skill means create the work order unassigned and flag it; only users with the FleetManager role in the same tenant can approve. Checkpoint: `s1-04-clarify`.
+Prepared answers:
+
+- No technician with the skill: suggest the work order unassigned and flag it "no qualified technician"; never suggest another customer's technician.
+- Who can approve: only users with the FleetManager role in the same customer.
+- Several qualified technicians (clarify often asks this one itself): the one with the fewest scheduled work orders in the next 7 days; ties alphabetical.
+
+Checkpoint: `s1-04-clarify`.
 
 ## Step 5 (25-27): plan inside the existing architecture
 
@@ -104,7 +112,7 @@ Prepared answers: no technician with the skill means create the work order unass
 /speckit-tasks
 ```
 
-Then always `scripts/jump.sh s1-05-plan-tasks`: that checkpoint holds a plan with a known tenant-filter gap.
+Then always `scripts/jump.sh s1-05-plan-tasks`: in that checkpoint the plan's technician lookup (`TechnicianMatcher.SuggestAsync(serviceType, requiredSkill)`) is not scoped by tenant, while its Constitution Check still says PASS.
 
 ## Step 6 (27-28): analyze catches the gap
 
@@ -116,12 +124,14 @@ Then always `scripts/jump.sh s1-05-plan-tasks`: that checkpoint holds a plan wit
 Fix this at the source: update plan.md and data-model.md so every dispatcher query and command is scoped by TenantId. Do not edit tasks.md by hand.
 ```
 
+Expected: one **CRITICAL** constitution finding (Principle II: technician lookup not tenant-scoped, and the plan wrongly marks it PASS) plus a HIGH coverage gap for FR-010. See [reference outputs](../demo/reference-outputs.md).
+
 Then `/speckit-tasks` and `/speckit-analyze` again: no critical findings.
 
 ## Step 7 (28-32): implement and converge
 
 ```text
-/speckit-implement Phase 1 and Phase 2 only
+/speckit-implement Phases 1 to 3 only (User Story 1, the MVP)
 ```
 
 ```bash
@@ -130,6 +140,15 @@ dotnet test
 
 ```text
 /speckit-converge
+```
+
+Expected: 9 new tests, 24 in total, all green. `/speckit-converge` appends one real gap as T026 (a non-existent tenant gets 200 instead of 400).
+
+**Punchline to show live:**
+
+```bash
+curl -s localhost:5080/api/reports/overdue | jq .count                       # legacy rule: 4 vehicles, all tenants
+curl -s localhost:5080/api/dispatch -H "X-Tenant-Id: 1" | jq '[.lines[].vehicleId] | unique | length'   # schedules: 24, tenant 1 only
 ```
 
 Checkpoint: `s1-06-implement`.

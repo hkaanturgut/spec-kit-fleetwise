@@ -1,5 +1,7 @@
 # Backup plan
 
+The checkpoint tags already exist (recorded dry run). Record the video clips during your own rehearsal.
+
 Record each clip during the final dry run and add the links here.
 
 | Moment | Clip | Checkpoint |
