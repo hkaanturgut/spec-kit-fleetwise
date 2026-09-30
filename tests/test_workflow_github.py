@@ -46,6 +46,7 @@ class DeliveryTests(unittest.TestCase):
         self.fail_tests = False
         self.fail_issue = None
         self.fail_push = False
+        self.hide_issue_list = False
         self.patcher = patch.object(delivery, "run", side_effect=self.fake_run)
         self.patcher.start()
         self.addCleanup(self.patcher.stop)
@@ -74,7 +75,10 @@ class DeliveryTests(unittest.TestCase):
         if args[1] == "api":
             path = next(arg for arg in args if arg.startswith("repos/"))
             if "issues?state=all" in path:
-                return json.dumps([self.remote_issues])
+                return json.dumps([[] if self.hide_issue_list else self.remote_issues])
+            if "/issues/" in path:
+                number = int(path.rsplit("/", 1)[1])
+                return json.dumps(next(i for i in self.remote_issues if i["number"] == number))
             if "labels?" in path:
                 return json.dumps([[{"name": "demo"}]])
             if path.endswith("/issues") and input_text:
@@ -150,11 +154,18 @@ class DeliveryTests(unittest.TestCase):
             delivery.issues(create=True)
         self.assertEqual(len(self.remote_issues), 1)
         self.fail_issue = None
+        self.hide_issue_list = True
         delivery.issues(create=True)
         delivery.issues(create=True)
         self.assertEqual(len(self.remote_issues), 2)
         self.assertTrue(all(i["labels"] == ["demo"] for i in self.remote_issues))
         self.assertEqual(set(delivery.issues(create=False)), {"T001", "T1000"})
+
+    def test_saved_issue_cannot_reference_another_feature(self):
+        self.ready()
+        self.remote_issues[0]["body"] = "An unrelated issue"
+        with self.assertRaisesRegex(RuntimeError, "does not belong"):
+            delivery.issues(create=False)
 
     def test_generic_task_titles_do_not_collide(self):
         self.remote_issues.append({"title": "T001: Old task", "body": "Other feature", "number": 50})
