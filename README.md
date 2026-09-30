@@ -6,12 +6,12 @@ FleetWise is a fictional fleet-maintenance SaaS. It works, but like most real sy
 
 [![CI](https://github.com/hkaanturgut/spec-kit-fleetwise/actions/workflows/ci.yml/badge.svg)](https://github.com/hkaanturgut/spec-kit-fleetwise/actions/workflows/ci.yml)
 
-**Present from this file:** [Run of show](#presentation-and-live-demo-runbook) |
-[Setup](#presenter-setup) | [Live steps](#step-1-add-spec-kit-16-17) |
-[Team](#team-moment-32-37) | [Automation](#workflow-automation-37-42) |
-[Q&A](#qa-everyday-development) | [Recovery](#checkpoint-recovery)
+**Start here:** [Quick start](#quick-start) — run FleetWise in about five minutes.<br>
+**Understand it:** [The ideas](#the-ideas-behind-this-demo) · [The spec-driven flow](#the-spec-driven-flow)<br>
+**Do it:** [Walkthrough](#walkthrough-adopt-spec-kit-on-this-repo) · [Steps 1-7](#step-1-add-spec-kit) · [Team](#working-as-a-team) · [Automation](#automate-the-flow-with-a-workflow)<br>
+**Everyday use:** [Q&A](#qa-everyday-development) · [If a step goes wrong](#if-a-step-goes-wrong)
 
-## What you will see
+## What you will build
 
 ```mermaid
 flowchart LR
@@ -26,38 +26,103 @@ flowchart LR
 
 ## Quick start
 
+Prerequisites: .NET 8 SDK **8.0.400 or later in the 8.0 line** (see `global.json`), Python 3.11+, [uv](https://docs.astral.sh/uv/), Git, VS Code with GitHub Copilot. The workflow automation step also needs [GitHub Copilot CLI](https://docs.github.com/copilot/how-tos/set-up/install-copilot-cli). The API examples use `curl` and `jq`; the team step uses the GitHub CLI.
+
+```bash
+git clone https://github.com/hkaanturgut/spec-kit-fleetwise.git
+cd spec-kit-fleetwise
+scripts/install-tools.sh     # installs the pinned Spec Kit version (.speckit-version)
+scripts/reset.sh             # branch demo-live at the starting checkpoint
+scripts/preflight.sh         # green/red readiness check
+dotnet run --project src/FleetWise.Api --urls http://localhost:5081
+```
+
+Swagger is at `http://localhost:5081/swagger`; try `GET /api/reports/overdue` to
+see the legacy behavior you are about to replace. Port 5081 leaves any prepared
+reference instance on 5080 alone.
+
+**Next:** stop the API with **Ctrl+C**, then either read
+[the ideas behind this demo](#the-ideas-behind-this-demo) or go straight to the
+[walkthrough](#walkthrough-adopt-spec-kit-on-this-repo) and adopt Spec Kit yourself.
+
+> [!WARNING]
+> `scripts/reset.sh` and `scripts/jump.sh` discard local files. Save any work first,
+> and prefer a dedicated practice clone.
+
+**If the SDK check fails:** run `dotnet --version` **inside this repository**. An
+older 8.0 SDK, or a .NET 9 SDK installed elsewhere, does not satisfy `global.json`.
+Check `which dotnet` and `dotnet --list-sdks` and select a compatible installation
+on your PATH rather than weakening the repository pin.
+
 ## The ideas behind this demo
 
 ### What is spec-driven development?
 
-Spec-driven development (SDD) is a way to build software from an explicit,
-reviewable description of intended behavior. The team agrees on the problem,
-users, constraints, acceptance criteria, and important decisions before asking
-someone or something to implement them. The specification is a living contract:
-when the intent changes, the design, tasks, tests, and code that depend on it
-can be updated together.
+Spec-driven development (SDD) builds software from an explicit, reviewable
+description of intended behavior. The specification is a living contract, not a
+one-time document: when intent changes, design, tasks, tests, and code are
+updated with it.
 
-SDD does not mean writing a large document before writing any code. It means
-making the next meaningful change understandable and testable. In a brownfield
-system, start with one bounded slice, inspect the existing conventions, record
-the decisions that matter, and leave the rest of the legacy system alone.
+| | 🎲 Prompt-driven | 📐 Spec-driven |
+| --- | --- | --- |
+| **Source of truth** | The last chat message | A versioned spec in the repo |
+| **Where intent lives** | In someone's head | In a reviewed artifact |
+| **Review target** | Generated code | Intent, constraints, then code |
+| **Ambiguity** | Silently invented by the agent | Raised as an explicit decision |
+| **Repeatability** | Reroll the prompt, get new behavior | Rerun the stage, get the same contract |
+| **Traceability** | Commit messages, maybe | Requirement → plan → task → test → code |
+| **Onboarding** | Read the diff and guess | Read the spec |
+
+> [!NOTE]
+> SDD is **not** "write a giant document before any code". It is "make the next
+> meaningful change understandable and testable". In a brownfield system: take
+> one bounded slice, inspect existing conventions, record the decisions that
+> matter, leave the rest of the legacy system alone.
 
 ### SDLC vs. AI-DLC
 
-The software development life cycle (SDLC) describes the stages a team uses to
-deliver and operate software: discover requirements, design, build, test,
-release, and learn from production. It is a useful map for the whole product
-lifecycle and applies whether the work is manual or AI-assisted.
+Three different layers, often confused. They stack rather than compete:
 
-AI-DLC describes how those stages change when AI can generate designs, code,
-tests, and documentation at high speed. The bottleneck moves from producing
-artifacts to establishing intent, supplying context, checking correctness, and
-approving risk. AI-DLC therefore emphasizes explicit specifications, small
-reviewable increments, traceability, and human gates at decisions that affect
-users, security, data, or architecture.
+| Layer | Scope | Answers | Artifact in this repo |
+| --- | --- | --- | --- |
+| **SDLC** | Lifecycle map | *Which stages* does the work pass through? | Discover → design → build → test → release → learn |
+| **AI-DLC** | Operating model | *How do those stages behave* when AI generates at speed? | Small increments, explicit gates, traceability |
+| **SDD** | Practice | *What mechanism* keeps intent authoritative? | Constitution, spec, plan, tasks |
+| **Spec Kit** | Tooling | *Which commands* execute the practice? | `/speckit.*` commands + workflows |
 
-SDD is the practical bridge between them. It gives AI-DLC a stable source of
-truth while preserving the familiar SDLC stages:
+What actually changes when AI enters the loop:
+
+| Dimension | 🧑‍💻 Classic SDLC | 🤖 AI-DLC |
+| --- | --- | --- |
+| **Bottleneck** | Producing artifacts | Establishing intent, supplying context, checking correctness |
+| **Cost of code** | High — hours per change | Near zero — seconds per change |
+| **Scarce resource** | Engineering time | Reviewed intent and trustworthy context |
+| **Batch size** | Sprint or release | One reviewable increment |
+| **Role of docs** | Trailing byproduct, often stale | Leading contract, kept current |
+| **Human role** | Author of the code | Approver of intent, trade-offs, and risk |
+| **Dominant risk** | Slow delivery | Fast propagation of a plausible wrong assumption |
+| **Verification** | Test after build | Continuous checks on artifacts *and* behavior |
+
+SDD is the bridge: it gives AI-DLC a stable source of truth while preserving the
+familiar SDLC stages.
+
+```mermaid
+flowchart LR
+    subgraph SDLC["SDLC stages (unchanged)"]
+        direction LR
+        R[Requirements] --> D[Design] --> C[Construction] --> V[Verification] --> CM[Change mgmt]
+    end
+    subgraph SDD["SDD artifacts (the contract)"]
+        direction LR
+        A1[Constitution<br/>Spec] --> A2[Plan<br/>Data model<br/>Contracts] --> A3[Tasks<br/>Implementation] --> A4[Analysis<br/>Tests<br/>Convergence]
+    end
+    R -.-> A1
+    D -.-> A2
+    C -.-> A3
+    V -.-> A4
+    CM -.-> A1
+    A4 -->|"rerun only stale stages"| A1
+```
 
 | SDLC concern | AI-DLC practice | Spec Kit evidence |
 | --- | --- | --- |
@@ -69,22 +134,23 @@ truth while preserving the familiar SDLC stages:
 
 ### Why practice SDD in the AI era?
 
-AI makes implementation cheaper, but it does not make ambiguous requirements
-safe. Without a shared specification, an agent can produce a polished answer
-that silently invents a threshold, omits tenant isolation, or changes an API
-contract. Faster generation can make incorrect assumptions spread faster too.
+AI makes implementation cheaper. It does not make ambiguous requirements safe.
+Without a shared specification, an agent produces a polished answer that
+silently invents a threshold, omits tenant isolation, or changes an API
+contract — and faster generation spreads that assumption faster.
 
-SDD helps a team:
+| ⚠️ Failure without a spec | ✅ What SDD adds | 🔍 Where you see it |
+| --- | --- | --- |
+| Agent invents a threshold or default | Humans own intent, trade-offs, acceptance | Spec acceptance criteria |
+| Agent lacks the constraint it needed | Context and rules given up front | Constitution, plan |
+| Decision buried in a 900-line diff | Decisions reviewed before code | Clarification log |
+| "Why does this endpoint behave this way?" | Requirement traced to design, task, test, behavior | Task IDs linked to spec sections |
+| Plausible but wrong change ships | Recovery by reverting the artifact, not archaeology | Versioned specs + workflow state |
+| Automation approves its own unknowns | Repeatable work automated, approval is not | Human gates in the workflow |
 
-- keep humans responsible for intent, trade-offs, and acceptance;
-- give AI the context and constraints needed for useful implementation;
-- review decisions before they are buried in code;
-- trace a requirement through design, tasks, tests, and behavior;
-- recover when an agent makes a plausible but incorrect change; and
-- automate repeatable work without automating approval of unknown decisions.
-
-The goal is not more paperwork. The goal is to move important reasoning into a
-small, shared artifact that both people and AI can inspect.
+> [!TIP]
+> The goal is not more paperwork. The goal is to move important reasoning into a
+> small, shared artifact that both people and AI can inspect.
 
 ### What is GitHub Spec Kit?
 
@@ -110,27 +176,6 @@ intent -> specify -> clarify -> plan -> tasks -> analyze -> implement -> converg
 Each step leaves evidence that can be reviewed or rerun. That is what makes the
 approach useful for both a human team and an AI-assisted workflow.
 
-Prerequisites: .NET 8 SDK **8.0.400 or later in the 8.0 line** (see `global.json`), Python 3.11+, [uv](https://docs.astral.sh/uv/), Git, VS Code with GitHub Copilot. The workflow segment also needs [GitHub Copilot CLI](https://docs.github.com/copilot/how-tos/set-up/install-copilot-cli). The API examples use `curl` and `jq`; the team segment uses the GitHub CLI.
-
-```bash
-git clone https://github.com/hkaanturgut/spec-kit-fleetwise.git
-cd spec-kit-fleetwise
-scripts/install-tools.sh     # installs the pinned Spec Kit version (.speckit-version)
-scripts/reset.sh             # branch demo-live at the starting checkpoint
-scripts/preflight.sh         # green/red readiness check
-dotnet run --project src/FleetWise.Api --urls http://localhost:5081
-```
-
-Swagger is at `http://localhost:5081/swagger`. For the full development demo, stop
-the API with **Ctrl+C** and follow the [runbook below](#presentation-and-live-demo-runbook).
-Port 5081 leaves any prepared reference instance on 5080 alone.
-
-Check `dotnet --version` **inside this repository** before rehearsal. An older
-8.0 SDK or a .NET 9 SDK installed elsewhere does not satisfy `global.json`.
-If SDK resolution fails, check `which dotnet` and `dotnet --list-sdks`; select the
-compatible installation on your PATH rather than weakening the repository pin.
-`reset.sh` and `jump.sh` discard local files: save any work first.
-
 ## The spec-driven flow
 
 Each step leaves a reviewable file. Humans own the intent; the AI does the translation; humans review at each gate.
@@ -151,38 +196,59 @@ flowchart TB
     D3 --> B1
 ```
 
-## Presentation and live demo runbook
+## Walkthrough: adopt Spec Kit on this repo
 
-**Session title:** Stop Prompting, Start Specifying: Ship AI-Built Software You Can Trust with GitHub Spec Kit
+Follow this end to end and you will have adopted Spec Kit on a real codebase:
+captured its conventions, specified one feature, caught a design violation before
+writing code, implemented a tenant-scoped slice, and automated the flow.
 
-**Story:** FleetWise is an existing fleet-maintenance SaaS. Its overdue report
-uses a hard-coded mileage rule and mixes customers' data. We specify one change:
-an overdue-maintenance dispatcher with technician suggestions and manager approval.
-The live build implements **only User Story 1, the tenant-scoped overdue list**.
-Suggestions and approval remain planned work, not finished demo endpoints.
+**The scenario:** FleetWise's overdue report uses a hard-coded mileage rule
+("10,000 km since any service") and returns vehicles from *all* customers. You will
+specify one replacement: an overdue-maintenance dispatcher with technician
+suggestions and manager approval, then build **only User Story 1, the
+tenant-scoped overdue list**. Suggestions and approval stay planned work — that is
+the point of bounded slices.
 
-| Minutes | Segment | Audience takeaway |
+| Step | What you do | What you learn |
 | --- | --- | --- |
-| 0-3 | [Hook](#hook-prompt-only-coding-0-3) | A plausible answer can hide business assumptions |
-| 3-16 | [Framing](#framing-why-specifications-3-16) | Agree on intent before generating code |
-| 16-32 | [Steps 1-7](#step-1-add-spec-kit-16-17) | Adopt SDD on one slice of a real codebase |
-| 32-37 | [Team moment](#team-moment-32-37) | Shared intent, parallel tasks, reviewed PRs |
-| 37-42 | [Workflow automation](#workflow-automation-37-42) | Automate execution between human decisions |
-| 42-45 | [First 30 days](#first-30-days-42-45) | Start small and measure the outcome |
+| [0](#step-0-see-what-prompt-only-coding-produces) | Ask Copilot for the feature with no spec | A plausible answer can hide business assumptions |
+| [1](#step-1-add-spec-kit) | `specify init --here` | Adding a process, not a new architecture |
+| [2](#step-2-derive-the-constitution-from-existing-code) | Read the code, then write the constitution | Existing code is evidence, not automatically policy |
+| [3](#step-3-specify-one-bounded-slice) | `/speckit-specify` | Specify the change, not the whole legacy system |
+| [4](#step-4-clarify-business-decisions) | `/speckit-clarify` | People decide policy; agents do not invent it |
+| [5](#step-5-plan-within-the-existing-architecture) | `/speckit-plan`, `/speckit-tasks` | Design is reviewed before any code is written |
+| [6](#step-6-let-analyze-catch-the-gap) | `/speckit-analyze` | A contradiction is cheapest to fix in the design |
+| [7](#step-7-implement-and-converge) | `/speckit-implement`, `/speckit-converge` | Passing tests ≠ requirement coverage |
+| [Team](#working-as-a-team) | Split tasks, review PRs | The spec is a contract between people |
+| [Automate](#automate-the-flow-with-a-workflow) | `specify workflow run` | Automate execution, keep human gates |
 
-### Presenter setup
+**The brownfield playbook**, in one table:
 
-Keep everything in **one VS Code window**:
+| Do | Don't |
+| --- | --- |
+| Inspect existing conventions first | Assume the agent knows your architecture |
+| Agree on the rules that matter, in writing | Write a 40-principle constitution nobody reads |
+| Pick one bounded slice | Try to specify the whole legacy system first |
+| Implement inside the existing architecture | Let the agent introduce new projects or frameworks |
+| Record known violations as debt | Promote an accidental pattern to policy |
 
-- Open this `README.md` and use **Markdown: Open Preview to the Side**. Pin the preview.
-- Keep **Copilot Chat in agent mode** beside it. `text` blocks below go into Copilot Chat.
-- Use integrated **Terminal A** for `bash` blocks. Reserve **Terminal B** for the API.
-- Set a readable font size, disable notifications, and confirm Mermaid diagrams render in your Markdown preview.
+### Before you start: set up your environment
 
-Use a dedicated practice clone. **Reset and jump discard uncommitted work and
-local files.** Stop Terminal B's API before using either command.
+Finish the [Quick start](#quick-start) first, then arrange **one VS Code window**:
 
-**Terminal A, before the session:**
+| What | Where | Used for |
+| --- | --- | --- |
+| This `README.md` | Markdown preview, pinned to the side | The steps you are following |
+| **Copilot Chat, agent mode** | Side panel | Every `text` block below |
+| **Terminal A** | Integrated terminal | Every `bash` block |
+| **Terminal B** | Second integrated terminal | Running the API |
+
+> [!WARNING]
+> `scripts/reset.sh` and `scripts/jump.sh` **discard uncommitted work and local
+> files**. Use a dedicated practice clone, and stop Terminal B's API before running
+> either one.
+
+**Terminal A, confirm you are ready:**
 
 ```bash
 git status --short
@@ -192,26 +258,26 @@ scripts/jump.sh --list
 ```
 
 **Expected:** preflight GREEN, 15 baseline tests, eight checkpoint tags.
-The helpers restore the current README, reset/jump/preflight scripts, and workflow
-definition from local `main` after each checkout. Application code and specs still
-come from the tag. These presentation/tooling differences can appear in `git status`;
-that is intentional. Historical tags are never moved.
 
-Start from an up-to-date `main` when preparing the practice clone. If you manually
-checked out an old tag and are using its old helper scripts, bootstrap them once:
+`reset.sh` and `jump.sh` restore the current README, the reset/jump/preflight
+scripts, and the workflow definition from your local `main` after each checkout;
+application code and specs come from the tag. So tooling differences showing up in
+`git status` are intentional. Historical tags are never moved.
+
+Start from an up-to-date `main`. If you checked out an old tag manually and are
+running its old helper scripts, bootstrap them once:
 
 ```bash
 git restore --source=main -- README.md scripts/jump.sh scripts/reset.sh scripts/preflight.sh workflows/sdd-autopilot/workflow.yml
 ```
 
-**Readiness limits:** the recorded checkpoints are available, but backup video
-clips and the coding-agent PR segment still need preparation. The workflow segment
-demonstrates starting the pipeline and reviewing its gates, not finishing an
-AI-generated feature within five minutes.
+**Every step has an escape hatch.** If a live agent run is slow or goes sideways,
+run that step's `scripts/jump.sh <tag>` command to load the recorded result and
+continue. See [if a step goes wrong](#if-a-step-goes-wrong).
 
-### Hook: prompt-only coding (0-3)
+### Step 0: see what prompt-only coding produces
 
-**Say:** "A useful-looking endpoint can still implement the wrong business rules."
+Start with the failure mode, so the rest has a reason to exist.
 
 **Copilot Chat:**
 
@@ -219,46 +285,25 @@ AI-generated feature within five minutes.
 Add an endpoint that lists overdue vehicles and suggests a work order for each.
 ```
 
-**Show:** one actual assumption in the response, such as an invented threshold,
-missing tenant scope, or an unsupported technician choice. Do not claim a flaw
-that the response does not contain. Stop a slow generation rather than wait.
+**Look for** one real assumption in the answer: an invented mileage or day
+threshold, no tenant scoping, or a technician chosen by a rule nobody agreed on.
+Read what it actually produced — do not assume a specific flaw. Stop a slow
+generation instead of waiting it out.
 
-**Terminal A, discard the hook and return to the baseline:**
+**Why this matters:** nothing in the prompt said *overdue by what rule*, or *whose
+vehicles*. The agent still had to answer both, so it guessed — silently, in code.
+
+**Terminal A, discard this and return to the baseline:**
 
 ```bash
 scripts/jump.sh s1-00-start
 ```
 
-**Fallback:** explain the known legacy rule, "10,000 km since any service," and
-the missing tenant isolation. This is the baseline's recorded behavior, not a claim
-about what Copilot just generated.
+If the answer happens to be reasonable, the baseline itself makes the point: the
+legacy rule is "10,000 km since any service" and it has no tenant isolation. That
+is recorded behavior in this repo, not a claim about what Copilot just generated.
 
-### Framing: why specifications? (3-16)
-
-**Say:** "The specification is the blueprint. Code is an implementation of it,
-not the place where we quietly invent the requirements."
-
-- **Power inversion:** humans approve intent and constraints; AI translates them into design and code.
-- **Why now:** faster code generation also produces incorrect assumptions faster.
-- **Brownfield playbook:** inspect conventions, agree on rules, choose one slice, specify its behavior, implement inside the existing architecture.
-- **Anti-pattern:** attempting to specify the entire legacy system before delivering any change.
-
-| AI-DLC concern | Spec Kit activity | Reviewable evidence |
-| --- | --- | --- |
-| Intent and requirements | constitution, specify, clarify | Principles, spec, explicit decisions |
-| Design | plan, tasks, analyze | Design artifacts, task dependencies, findings |
-| Construction and verification | implement, converge | Code, tests, remaining gaps |
-| Change management | Update affected artifacts and rerun stale stages | Traceable requirement-to-code changes |
-
-**Agent, skill, workflow:** an agent is the worker; a skill is a reusable procedure;
-a workflow coordinates execution and gates. This demo uses Copilot with Spec Kit
-skills, not a separate custom agent for each stage.
-
-**Navigate in this README:** the [spec-driven flow](#the-spec-driven-flow) is the
-visual overview. The [Q&A](#qa-everyday-development) explains small changes,
-bug fixes, and team adoption.
-
-### Step 1: add Spec Kit (16-17)
+### Step 1: add Spec Kit
 
 **Terminal A:**
 
@@ -276,18 +321,20 @@ specify init --here --force --integration copilot
 git status --short
 ```
 
-**Say:** "We added the delivery process, not a new application architecture."
+**Expected:** `.specify/` and `.github/skills/` contain the generated process
+files; application code is unchanged. You added the delivery process, not a new
+application architecture. Skills are hyphenated: `/speckit-plan`, not `/speckit.plan`.
 
-**Expected:** `.specify/` and `.github/skills/` contain the generated process files;
-application code is unchanged. Use hyphenated skills such as `/speckit-plan`.
-
-**Checkpoint / recovery:**
+**Recorded result:**
 
 ```bash
 scripts/jump.sh s1-01-init
 ```
 
-### Step 2: derive the constitution (17-20)
+### Step 2: derive the constitution from existing code
+
+Ask the agent to **read first and change nothing.** You cannot agree on rules you
+have not looked at.
 
 **Copilot Chat, discovery only:**
 
@@ -295,12 +342,17 @@ scripts/jump.sh s1-01-init
 Read this repository and list the engineering conventions it already follows: layering, data access, validation, error handling, testing, naming, configuration, and multi-tenancy. For each convention, cite one or two files as evidence. Then list every place that breaks the convention. Do not change any files.
 ```
 
-**Expected evidence:** VehiclesController and WorkOrdersController use services;
-TechniciansController and ReportsController access DbContext directly. TenantId
-exists in the data model, but legacy queries do not enforce isolation.
+**Expected evidence:**
 
-**Say:** "Existing code is evidence, not automatically policy. We keep the service
-layer, record its violations as debt, and explicitly agree on tenant isolation."
+| Convention | Followed by | Broken by |
+| --- | --- | --- |
+| Data access through a service layer | `VehiclesController`, `WorkOrdersController` | `TechniciansController`, `ReportsController` use `DbContext` directly |
+| Tenant isolation | `TenantId` exists in the data model | Legacy queries never filter by it |
+
+**The judgment call:** existing code is evidence, not automatically policy. Keep
+the service layer (most of the code already follows it), record the two violations
+as known debt, and add tenant isolation as a rule the team agrees on *now* — the
+codebase does not have it yet.
 
 **Copilot Chat:**
 
@@ -318,7 +370,7 @@ layer, record its violations as debt, and explicitly agree on tenant isolation."
 5. No secrets in code; configuration comes from environment variables or appsettings.
 ```
 
-**Show:** `.specify/memory/constitution.md`. Review the diff before committing.
+**Read `.specify/memory/constitution.md`** and review the diff before committing.
 
 ```bash
 git --no-pager diff --stat
@@ -326,13 +378,13 @@ git add -A
 git commit -m "docs: adopt Spec Kit constitution"
 ```
 
-**Checkpoint / recovery:**
+**Recorded result:**
 
 ```bash
 scripts/jump.sh s1-02-constitution
 ```
 
-### Step 3: specify one bounded slice (20-23)
+### Step 3: specify one bounded slice
 
 **Copilot Chat:**
 
@@ -351,19 +403,18 @@ If `specify` asks its own questions, reply:
 Keep them as open questions in the spec; we will run clarify next.
 ```
 
-**Show:** the generated `specs/<feature>/spec.md`: user stories, acceptance
-criteria, requirements, and clarification markers. A live run can choose a
-different folder name; the checkpoints use `specs/001-overdue-dispatcher/`.
+**Read `specs/<feature>/spec.md`:** user stories, acceptance criteria,
+requirements, and `[NEEDS CLARIFICATION]` markers. Note what it *did not* decide —
+those markers are the next step's input. A live run may pick a different folder
+name; the checkpoints use `specs/001-overdue-dispatcher/`.
 
-**Say:** "We specify the change, not the whole system."
-
-**Checkpoint / recovery:**
+**Recorded result:**
 
 ```bash
 scripts/jump.sh s1-03-specify
 ```
 
-### Step 4: clarify business decisions (23-25)
+### Step 4: clarify business decisions
 
 **Copilot Chat:**
 
@@ -376,23 +427,28 @@ scripts/jump.sh s1-03-specify
 /speckit-clarify
 ```
 
-**Prepared answers:**
+**Answer with the decisions a business would actually make:**
 
-- No qualified technician: suggest unassigned, flag "no qualified technician," and never use another customer's technician.
-- Approval: only a FleetManager in the same customer.
-- Several qualified technicians: fewest scheduled work orders in the next seven days; ties alphabetically.
+| Question | Decision |
+| --- | --- |
+| No qualified technician available? | Suggest unassigned, flag "no qualified technician," never use another customer's technician |
+| Who can approve a work order? | Only a FleetManager in the same customer |
+| Several qualified technicians? | Fewest scheduled work orders in the next 7 days; ties alphabetically |
 
-**Show:** the decisions integrated into the spec and unresolved markers removed.
+**Check the spec:** each decision is integrated and the unresolved markers are
+gone. These are exactly the answers Step 0's agent invented on its own.
 
-**Checkpoint / recovery:**
+**Recorded result:**
 
 ```bash
 scripts/jump.sh s1-04-clarify
 ```
 
-### Step 5: plan within the existing architecture (25-27)
+### Step 5: plan within the existing architecture
 
-**Copilot Chat, one command at a time:**
+Run these **one at a time**, reviewing between them.
+
+**Copilot Chat:**
 
 > [!NOTE]
 > **What:** `/speckit-plan` translates the spec into a technical plan and supporting design artifacts.<br>
@@ -412,21 +468,22 @@ scripts/jump.sh s1-04-clarify
 /speckit-tasks
 ```
 
-**Show:** `plan.md`, `data-model.md`, `contracts/`, and `tasks.md`.
+**Read `plan.md`, `data-model.md`, `contracts/`, and `tasks.md`.** The constraints
+in the prompt ("no new projects and no new frameworks") are what keep an agent from
+redesigning your application while implementing a feature.
 
-**Always load the prepared fault for the next teaching moment:**
+**Now load the prepared fault, so the next step has something to catch:**
 
 ```bash
 scripts/jump.sh s1-05-plan-tasks
 ```
 
-**Say:** "This checkpoint deliberately contains a bad technician lookup. We are
-testing whether analysis catches it, not claiming every live plan makes this mistake."
+This checkpoint deliberately contains a bad technician lookup:
+`TechnicianMatcher.SuggestAsync(serviceType, requiredSkill)` is **not
+tenant-scoped**, while the plan's own Constitution Check says PASS. This tests
+whether analysis catches a violation — not every live plan makes this mistake.
 
-The lookup `TechnicianMatcher.SuggestAsync(serviceType, requiredSkill)` is not
-tenant-scoped, while the plan's Constitution Check says PASS.
-
-### Step 6: analyze catches the gap (27-28)
+### Step 6: let analyze catch the gap
 
 **Copilot Chat:**
 
@@ -439,14 +496,16 @@ tenant-scoped, while the plan's Constitution Check says PASS.
 /speckit-analyze
 ```
 
-**Expected findings to point at:**
+**Expected findings:**
 
 | Finding | Severity | Why it matters |
 | --- | --- | --- |
 | Technician lookup lacks TenantId; plan incorrectly says PASS | CRITICAL | Violates the tenant-isolation principle |
 | No test proves another tenant's technician is excluded | HIGH | The safety requirement is not covered |
 
-**Copilot Chat, fix the source rather than suppressing the finding:**
+**Fix the source, not the symptom.** The temptation is to patch `tasks.md` and move
+on; then the design still says the wrong thing and the next regeneration brings the
+bug back.
 
 ```text
 Fix this at the source: update plan.md and data-model.md so every dispatcher query and command is scoped by TenantId. Do not edit tasks.md by hand.
@@ -471,26 +530,25 @@ Fix this at the source: update plan.md and data-model.md so every dispatcher que
 ```
 
 **Expected:** the critical tenant-scope finding is resolved. Other findings still
-need review; a PASS label alone is not evidence.
+need your review — a PASS label alone is not evidence.
 
-**Fallback:** show the recorded correction in Terminal A:
+**See the recorded correction instead:**
 
 ```bash
 git --no-pager diff s1-05-plan-tasks s1-06-implement -- specs/001-overdue-dispatcher/plan.md specs/001-overdue-dispatcher/data-model.md specs/001-overdue-dispatcher/tasks.md
 ```
 
-The fault is recorded at `s1-05-plan-tasks`; the corrected design and built MVP
-are in `s1-06-implement`. There is no separate post-analysis tag. If time is short,
-use the Step 7 recovery rather than imply the recorded implementation just ran live.
+The fault is recorded at `s1-05-plan-tasks`; the corrected design and the built MVP
+are both in `s1-06-implement`. There is no separate post-analysis tag.
 
-### Step 7: implement and converge (28-32)
+### Step 7: implement and converge
 
 **Copilot Chat:**
 
 > [!NOTE]
 > **What:** `/speckit-implement` executes the planned tasks, modifying code and tests.<br>
 > **When:** The design is reviewed and critical analysis findings are resolved.<br>
-> **Why:** Build against explicit scope and dependencies. Here the phase limit keeps the live build to User Story 1, not the entire feature.
+> **Why:** Build against explicit scope and dependencies. The phase limit here keeps the build to User Story 1 instead of the whole feature.
 
 ```text
 /speckit-implement Phases 1 to 3 only (User Story 1, the MVP)
@@ -513,31 +571,37 @@ dotnet test --nologo
 /speckit-converge
 ```
 
-**Expected at the checkpoint:** 24 passing tests, up from 15. Converge records
-T026: an unknown tenant returns `200` with an empty list rather than the contract's
-`400`. Suggestions and approvals remain open tasks. Live test counts can vary;
-review behavior instead of manufacturing the reference output.
+**Expected at the checkpoint:**
 
-**Checkpoint / recovery, with the API stopped:**
+| Signal | Value |
+| --- | --- |
+| Tests | 24 passing, up from 15 |
+| Gap recorded as T026 | Unknown tenant returns `200` with an empty list; the contract requires `400` |
+| Still open | Technician suggestions, manager approval |
+
+Live test counts vary. Review the behavior rather than trying to reproduce the
+reference numbers.
+
+**Recorded result** (stop the API first):
 
 ```bash
 scripts/jump.sh s1-06-implement
 dotnet test --nologo
 ```
 
-**Terminal B:** start or restart the API from this same practice clone. A fresh
-demo database keeps the seeded dates current without deleting another database.
+**Terminal B**, start the API from this same clone. A fresh database keeps the
+seeded dates current without deleting anything else:
 
 ```bash
 ConnectionStrings__FleetWise="Data Source=fleetwise-$(date +%Y%m%d-%H%M%S).db" \
   dotnet run --project src/FleetWise.Api --urls http://localhost:5081
 ```
 
-**Terminal A, the punchline without opening a browser:**
+**Terminal A, see the difference the spec made:**
 
 ```bash
 curl -fsS http://localhost:5081/api/reports/overdue | jq .count
-# 4 vehicles across tenants, using the old rule
+# 4 vehicles across tenants, using the old hard-coded rule
 
 curl -fsS http://localhost:5081/api/dispatch -H "X-Tenant-Id: 1" \
   | jq '{lines: .count, vehicles: ([.lines[].vehicleId] | unique | length)}'
@@ -548,12 +612,12 @@ curl -fsS http://localhost:5081/api/dispatch -H "X-Tenant-Id: 2" \
 # 15 vehicles, tenant 2 only
 ```
 
-**Say:** "The feature follows the agreed schedules and tenant boundary. More
-results are not the lesson; explicit rules and verifiable behavior are."
+The new endpoint follows the agreed schedules and respects the tenant boundary.
+More results are not the lesson; explicit rules and verifiable behavior are.
 
-### Team moment (32-37)
+### Working as a team
 
-**Say:** "The spec is the contract between people, not just between a person and AI."
+The spec is a contract between people, not only between a person and an AI.
 
 ```mermaid
 flowchart LR
@@ -563,11 +627,12 @@ flowchart LR
     D --> R["Human review<br/>Code and tests against spec"]
 ```
 
-Use the [team Q&A](#how-do-multiple-team-members-work-on-the-same-project) below
-without leaving the README. Three gates are intent, design, and implementation.
-`[P]` is a candidate for parallel work, not proof that tasks cannot conflict.
+Three gates: **intent**, **design**, **implementation**. `[P]` in `tasks.md` marks
+a *candidate* for parallel work, not proof that two tasks cannot conflict. The
+[team Q&A](#how-do-multiple-team-members-work-on-the-same-project) covers
+ownership, worktrees, and feature selection.
 
-**Prepare before presenting, not during the five-minute segment:**
+**Distribute the work:**
 
 > [!NOTE]
 > **What:** `/speckit-taskstoissues` turns feature tasks into GitHub issues.<br>
@@ -578,28 +643,21 @@ without leaving the README. Three gates are intent, design, and implementation.
 /speckit-taskstoissues
 ```
 
-That command creates GitHub issues. Review them, label demo issues `demo`, and
-assign two genuinely independent tasks to the Copilot coding agent if the account
-has access. Prepare the resulting PRs before the session.
-
-**Terminal A, show prepared work without changing windows:**
+Review the created issues, label demo ones `demo`, and assign genuinely independent
+tasks to the Copilot coding agent if your account has access.
 
 ```bash
 gh issue list --label demo --state open
 gh pr list --label demo --state open
 ```
 
-If no PRs are ready, use the diagram and explain the operating model. Do not
-present an empty list as a completed coding-agent demonstration.
+### Automate the flow with a workflow
 
-### Workflow automation (37-42)
-
-**Say:** "We just ran the stages by hand. Now one command runs them for us.
-We still own the decisions, but we do not have to type every slash command."
+You just ran the stages by hand. One command runs them for you — you still own the
+decisions, you just stop typing every slash command.
 
 Use **`speckit-delivery`**, this repo's small extension of the built-in `speckit`
 sequence. It adds GitHub task issues, a test check, and a draft PR to `main`.
-You still start the entire pipeline with one command.
 
 ```mermaid
 flowchart LR
@@ -611,17 +669,15 @@ flowchart LR
     T --> RI{"Approve public issues"}
     RI -- approve --> ISS["taskstoissues<br/>GitHub issues"]
     ISS --> I["Implement + test"]
-    I --> RC{"Review changes"}
-    RC -- approve --> PR["Commit + push<br/>Draft PR to main"]
+    I --> RC["Automated tests<br/>and diff checks"]
+    RC --> PR["Commit + push<br/>Draft PR to main"]
     RS -- reject --> STOP["Stop"]
     RP -- reject --> STOP
 ```
 
-**Prepare once before this segment, in an integrated terminal.** Start a separate
-working directory from current `origin/main`, keeping its existing initialization.
-If it is not initialized, load the setup and agreed constitution from the checkpoint.
-This avoids publishing historical
-README/application regressions. Your earlier demo work stays untouched:
+**Prepare a separate working directory** from current `origin/main`, so this run
+cannot publish historical README or application regressions and your earlier work
+stays untouched:
 
 ```bash
 WORKFLOW_DEMO="$(mktemp -d "${TMPDIR:-/tmp}/fleetwise-workflow.XXXXXX")"
@@ -633,17 +689,18 @@ if [[ ! -f .specify/integration.json ]]; then
 fi
 ```
 
-GitHub CLI must have the `hkaanturgut` account signed in with repository write
-access. The workflow switches to and verifies that account, and checks both
-origin URLs before creating a unique `demo/delivery-*` branch.
-This demo's publication helper deliberately allows only this repository.
+> [!IMPORTANT]
+> This run creates **real GitHub issues and a real draft PR**. The GitHub CLI must
+> have the `hkaanturgut` account signed in with write access; the workflow verifies
+> that account and both origin URLs before creating a unique `demo/delivery-*`
+> branch. This repo's publication helper deliberately allows only this repository.
 
-**Run the pipeline, not the individual slash commands:**
+**Run the pipeline instead of the individual slash commands:**
 
 > [!NOTE]
 > **What:** This workflow runs specify, plan, tasks, taskstoissues, implement, tests, and GitHub publication.<br>
 > **When:** The dedicated worktree and constitution are ready, and you want a tracked feature delivered as a PR.<br>
-> **Why:** Automate the handoffs as well as coding, with approval before public issues and publication.
+> **Why:** Automate the handoffs as well as coding, with approval before public issues and a PR link for human review.
 
 ```bash
 specify workflow run ./workflows/speckit-delivery/workflow.yml \
@@ -651,42 +708,38 @@ specify workflow run ./workflows/speckit-delivery/workflow.yml \
   -i spec="Extend the existing GET /health endpoint to return the fixed service name FleetWise.Api alongside the existing status value ok. Preserve HTTP 200, the existing status field, and anonymous access. Add automated regression coverage. Keep all other endpoints, the database, dependencies, and architecture unchanged."
 ```
 
-This intentionally tiny change keeps attention on orchestration. Normally a
-change this small can use a normal PR; it does not require the full SDD cycle.
+The change is intentionally tiny so the orchestration is what you notice. A change
+this small would normally go through a normal PR, not the full SDD cycle.
 
-**What to show, not a specific generated result:**
+**What happens, and where you come in:**
 
-1. The terminal starts the **specify** stage without a slash command.
-2. At **Review spec**, open the generated `spec.md` from the feature path printed
-   in the terminal. Review it, then choose **approve** to let planning run.
-3. At **Review plan**, approve the design. The workflow generates **tasks**.
-4. Review `tasks.md`, then approve **public issue creation**. `taskstoissues`
-   creates one `demo`-labeled GitHub issue per task and records `issue-links.json`.
-   Implementation and tests run automatically next.
-5. Review the diff and new files, then approve **publication**. The workflow
-   commits to its feature branch, pushes it, and prints a **draft PR to `main`**.
-   The PR links the task issues with `Closes #...`; they close on merge, not on
-   code generation. Nothing merges automatically.
+| Stage | Who acts | What to do |
+| --- | --- | --- |
+| **Specify** | Workflow | Starts with no slash command typed |
+| **Review spec** | You | Open the generated `spec.md` at the printed feature path, then **approve** or **reject** |
+| **Plan** → **Review plan** | Workflow, then you | Approve the design; tasks are generated next |
+| **Approve public issues** | You | Review `tasks.md` first — this creates real issues |
+| **taskstoissues** | Workflow | One `demo`-labeled issue per task, recorded in `issue-links.json` |
+| **Implement + test** | Workflow | Runs automatically after that approval |
+| **Commit, push, draft PR** | Workflow | Checks the diff and new files, prints a draft PR link |
+| **Review the PR** | You | Nothing merges automatically |
 
-Choose **reject** if the scope or design is wrong. Leave terminal input connected:
-do **not** add `< /dev/null` to this interactive demonstration.
-The point is the pipeline and its gates, not identical generated files or a
-finished feature during the five-minute segment. If generation is slow, explain
-the diagram and let the run continue; finish the reviews during rehearsal.
+The PR links its task issues with `Closes #...`; they close on merge, not when code
+is generated. Choose **reject** if the scope or design is wrong. Keep terminal input
+connected — do **not** add `< /dev/null` to an interactive run.
 
-**Say:** "The workflow coordinates the work. Copilot executes each stage.
-People approve intent and design, then review the resulting code before merging."
+The built-in `speckit` workflow stops after implementation. This repo's
+[delivery definition](workflows/speckit-delivery/workflow.yml) adds the GitHub
+stages without modifying the installed built-in. It does not add clarify, analyze,
+or converge; the [advanced guide](docs/workflow-automation.md) covers those.
 
-The original built-in `speckit` workflow still stops after implementation.
-Our [delivery definition](workflows/speckit-delivery/workflow.yml) adds these
-GitHub stages without modifying the installed built-in. It does not add clarify,
-analyze, or converge; the [advanced example](docs/workflow-automation.md) covers
-those customizations. A completed pipeline is not proof that code is correct.
-Copilot has broad tool permissions by default; a worktree protects against
-accidental file overlap, **not** against unrestricted tool access.
+> [!WARNING]
+> A completed pipeline is not proof that the code is correct. Copilot has broad tool
+> permissions by default; a worktree protects against accidental file overlap, **not**
+> against unrestricted tool access.
 
 <details>
-<summary>Recovery only: inspect or resume a paused run</summary>
+<summary>Inspect or resume a paused run</summary>
 
 Run these in the same workflow working directory.
 
@@ -708,49 +761,80 @@ specify workflow status
 specify workflow resume <run_id>
 ```
 
-Retries reuse issues for the same branch/feature/task, including closed issues,
-and reuse an open PR for the same branch. A failed test or missing task issue
-stops publication; failures are not silently treated as success. A new run in
-a new worktree intentionally creates a new issue set.
-If `main` changes during a long run, resolve any PR conflicts through the normal
-branch-review process. The workflow does not overwrite `main` or force-resolve conflicts.
+Retries reuse issues for the same branch/feature/task, including closed issues, and
+reuse an open PR for the same branch. A failed test or a missing task issue stops
+publication; failures are not silently treated as success. A new run in a new
+worktree intentionally creates a new issue set. If `main` changes during a long run,
+resolve PR conflicts through the normal branch-review process — the workflow never
+overwrites `main` or force-resolves conflicts.
 
-For a fresh attempt, repeat the preparation block **from the original demo
-checkout**; keep the previous run for inspection. Do not reset your earlier live work.
-Record this workflow segment during rehearsal using the
-[backup checklist](demo/backups.md). The older `s1-07-workflow` result demonstrates
-the state-aware workflow, not the issue/PR delivery pipeline.
+For a fresh attempt, repeat the preparation block from your original checkout and
+keep the previous run for inspection. The older `s1-07-workflow` tag demonstrates
+the state-aware workflow, not this issue/PR delivery pipeline.
 
 </details>
 
-### First 30 days (42-45)
+### Your first 30 days
 
-- **Week 1:** pick one bounded change; agree on a small constitution and capture baseline tests.
-- **Week 2:** use the spec/design/code review gates; measure review effort and rework.
-- **Week 3:** divide independent tasks across people and agents; record integration conflicts and escaped defects.
-- **Week 4:** automate repeatable stages with limits and logs; keep human approval at meaningful decisions.
+| Week | Focus | What to measure |
+| --- | --- | --- |
+| **1** | One bounded change; a small constitution; capture baseline tests | Do you have a green baseline to compare against? |
+| **2** | Use the spec, design, and code review gates | Review effort and rework per change |
+| **3** | Divide independent tasks across people and agents | Integration conflicts and escaped defects |
+| **4** | Automate repeatable stages with limits and logs | Time saved, and which approvals you kept |
 
-**Close:** "Small fix: normal PR. Requirement change: relevant Spec Kit stages.
-Approved implementation: bounded automation."
+**The rule of thumb:** small fix → normal PR. Requirement change → the relevant
+Spec Kit stages. Approved implementation → bounded automation.
 
-### Checkpoint recovery
+### If a step goes wrong
 
-For every live step, use its recovery command above if it is slow or goes
-off-script. A useful live threshold is 90 seconds before switching to the prepared
-result. Treat the checkpoint as a transparent fallback, not as newly generated work.
+Every step above has a `scripts/jump.sh <tag>` command that loads the recorded
+result. Use it whenever a live run stalls, errors, or drifts off course — roughly
+90 seconds is a sensible limit before switching.
 
 ```mermaid
 flowchart LR
-    LIVE["Run live"] --> READY{"Useful result<br/>within the timebox?"}
-    READY -- yes --> NEXT["Review and continue"]
-    READY -- no --> STOP["Stop API and generation"]
-    STOP --> TAG["Load recorded checkpoint<br/>README stays visible"]
+    LIVE["Run the step live"] --> READY{"Useful result<br/>in time?"}
+    READY -- yes --> NEXT["Review it and continue"]
+    READY -- no --> STOP["Stop the API and the generation"]
+    STOP --> TAG["scripts/jump.sh &lt;tag&gt;<br/>loads the recorded result"]
     TAG --> NEXT
 ```
 
-Checkpoint files are available now. Video clips still need recording: hook,
-constitution, analyze finding, implementation/convergence, and workflow pipeline.
-Never force-update the published `s1-*` tags during practice.
+A checkpoint is a transparent fallback, not newly generated work — say so if you
+are showing this to other people. Never force-update the published `s1-*` tags.
+
+<details>
+<summary>Presenting this walkthrough to an audience</summary>
+
+The walkthrough doubles as a live-demo script. Suggested 45-minute run of show:
+
+| Minutes | Segment |
+| --- | --- |
+| 0-3 | [Step 0: prompt-only coding](#step-0-see-what-prompt-only-coding-produces) |
+| 3-16 | [The ideas behind this demo](#the-ideas-behind-this-demo) as framing |
+| 16-32 | [Steps 1-7](#step-1-add-spec-kit) |
+| 32-37 | [Working as a team](#working-as-a-team) |
+| 37-42 | [Automate the flow](#automate-the-flow-with-a-workflow) |
+| 42-45 | [Your first 30 days](#your-first-30-days) |
+
+Session title: *Stop Prompting, Start Specifying: Ship AI-Built Software You Can
+Trust with GitHub Spec Kit.*
+
+Presenter mechanics: pin the Markdown preview, set a readable font size, disable
+notifications, and confirm Mermaid diagrams render before you start. Prepare the
+team segment's issues and PRs **before** the session — `/speckit-taskstoissues`
+plus coding-agent PRs do not fit in five minutes. Never present an empty
+`gh pr list` as a finished coding-agent demonstration; use the diagram and explain
+the operating model instead.
+
+For the workflow segment, rehearse the reviews and record a clip using the
+[backup checklist](demo/backups.md); if generation is slow on stage, explain the
+diagram and let the run continue. Checkpoint files are available now; video clips
+still need recording for the hook, constitution, analyze finding,
+implementation/convergence, and workflow pipeline.
+
+</details>
 
 ## Q&A: everyday development
 
@@ -852,7 +936,7 @@ described in a role name.
 ### How do we use Spec Kit workflows?
 
 **Run a workflow instead of typing each slash command.** The
-[live example above](#workflow-automation-37-42) uses `speckit-delivery`:
+[walkthrough above](#automate-the-flow-with-a-workflow) uses `speckit-delivery`:
 specify, plan, tasks, taskstoissues, implement, test, commit/push, draft PR.
 It still calls Copilot and the Spec Kit procedures underneath.
 
@@ -920,7 +1004,7 @@ gitGraph
 ## Documentation
 
 - [Architecture and known debt](docs/architecture.md)
-- [Presentation and demo runbook: every command and prompt](#presentation-and-live-demo-runbook)
+- [Walkthrough: every command and prompt, step by step](#walkthrough-adopt-spec-kit-on-this-repo)
 - [Team playbook: Spec Kit with many developers](docs/team-playbook.md)
 - [Workflow automation: the sdd-autopilot workflow](docs/workflow-automation.md)
 

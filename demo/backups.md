@@ -15,7 +15,7 @@ Record each clip during the final dry run and add the links here.
 
 ## Record a rehearsal without moving checkpoints
 
-Use the [single-page runbook](../README.md#presentation-and-live-demo-runbook)
+Use the [single-page runbook](../README.md#walkthrough-adopt-spec-kit-on-this-repo)
 in a dedicated practice clone. Reset discards local work; save anything needed first.
 
 ```bash
