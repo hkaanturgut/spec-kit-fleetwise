@@ -13,12 +13,21 @@ case "$cmd" in
     printf '# Feature: Overdue dispatcher\n\nManagers see overdue vehicles.\n' > "$F/spec.md"
     printf '{"feature_directory":"%s"}\n' "$F" > .specify/feature.json ;;
   /speckit-plan)
-    [[ "$prompt" == *"Reconcile the current spec.md"* ]] || { echo "Missing regeneration instructions" >&2; exit 1; }
+    [[ "${DELIVERY_TEST:-}" == 1 || "$prompt" == *"Reconcile the current spec.md"* ]] || { echo "Missing regeneration instructions" >&2; exit 1; }
     printf '# Plan\n\nDispatcherService, TenantId scoped.\n' > "$F/plan.md" ;;
   /speckit-tasks)
-    [[ "$prompt" == *"Reconcile tasks.md"* ]] || { echo "Missing regeneration instructions" >&2; exit 1; }
+    [[ "${DELIVERY_TEST:-}" == 1 || "$prompt" == *"Reconcile tasks.md"* ]] || { echo "Missing regeneration instructions" >&2; exit 1; }
     printf -- '- [ ] T001 Write failing tests\n- [ ] T002 Implement DispatcherService\n' > "$F/tasks.md" ;;
-  /speckit-implement) sed -i.bak 's/- \[ \] T001/- [x] T001/' "$F/tasks.md" && rm -f "$F/tasks.md.bak" ;;
+  /speckit-taskstoissues)
+    [[ "$prompt" == *'python3 scripts/workflow_github.py issues'* ]] || exit 1
+    if [[ "${SKIP_ISSUES:-}" != 1 ]]; then python3 scripts/workflow_github.py issues; fi ;;
+  /speckit-implement)
+    if [[ "${DELIVERY_TEST:-}" == 1 ]]; then
+      sed -i.bak 's/- \[ \]/- [x]/g' "$F/tasks.md"
+    else
+      sed -i.bak 's/- \[ \] T001/- [x] T001/' "$F/tasks.md"
+    fi
+    rm -f "$F/tasks.md.bak" ;;
   /speckit-converge)  sed -i.bak 's/- \[ \] T002/- [x] T002/' "$F/tasks.md" && rm -f "$F/tasks.md.bak" ;;
 esac
 echo '{"type":"result","result":"ok"}'

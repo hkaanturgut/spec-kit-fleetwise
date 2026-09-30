@@ -1,0 +1,128 @@
+schema_version: "1.0"
+workflow:
+  id: speckit-delivery
+  name: "SDD to GitHub issues and a draft PR"
+  version: "0.1.0"
+  description: "Specify, plan, track tasks as issues, implement, test, and publish a reviewed feature branch."
+
+requires:
+  speckit_version: ">=1.0.13"
+  integrations:
+    any: ["copilot"]
+
+inputs:
+  spec:
+    type: string
+    required: true
+    prompt: "Describe the bounded change"
+  integration:
+    type: string
+    default: copilot
+  spec_review:
+    type: string
+    default: ""
+  plan_review:
+    type: string
+    default: ""
+  issues_review:
+    type: string
+    default: ""
+  publish_review:
+    type: string
+    default: ""
+
+steps:
+  - id: branch
+    type: shell
+    run: "python3 scripts/workflow_github.py prepare"
+
+  - id: specify
+    command: speckit.specify
+    integration: "{{ inputs.integration }}"
+    input:
+      args: >-
+        {{ inputs.spec }}
+        Stay on the branch created by workflow_github.py. Work only in this
+        checkout. Do not commit, push, create issues or PRs, or deploy.
+
+  - id: specreview
+    type: gate
+    message: "Review the generated spec. Approve intent before planning."
+    options: [approve, reject]
+    on_reject: abort
+    verdict_input: spec_review
+
+  - id: plan
+    command: speckit.plan
+    integration: "{{ inputs.integration }}"
+    input:
+      args: >-
+        Plan the active feature inside the existing architecture.
+        Do not change branches, commit, push, create issues or PRs, or deploy.
+
+  - id: planreview
+    type: gate
+    message: "Review the plan. Approve the design before generating tasks."
+    options: [approve, reject]
+    on_reject: abort
+    verdict_input: plan_review
+
+  - id: tasks
+    command: speckit.tasks
+    integration: "{{ inputs.integration }}"
+    input:
+      args: >-
+        Generate bounded test-first tasks for the active feature.
+        Do not change branches, commit, push, create issues or PRs, or deploy.
+
+  - id: issuesreview
+    type: gate
+    message: "Review tasks.md and its scope. Approve creating public demo-labeled GitHub issues, one per task."
+    options: [approve, reject]
+    on_reject: abort
+    verdict_input: issues_review
+
+  - id: taskstoissues
+    command: speckit.taskstoissues
+    integration: "{{ inputs.integration }}"
+    input:
+      args: >-
+        Use this repository's deterministic GitHub CLI adapter:
+        run `python3 scripts/workflow_github.py issues` and report its output.
+        The adapter handles remote/account checks, feature-scoped deduplication,
+        demo labels, and issue-links.json. Use it instead of the skill's
+        generic MCP issue creation instructions. Do not create issues by any
+        other method, alter tasks, change branches, commit, or push.
+        If the adapter fails, report the failure; do not invent a workaround.
+
+  - id: verifyissues
+    type: shell
+    run: "python3 scripts/workflow_github.py verify-issues"
+
+  - id: implement
+    command: speckit.implement
+    integration: "{{ inputs.integration }}"
+    input:
+      args: >-
+        Implement the active feature test-first and update its task checkboxes.
+        Keep issue-links.json. Do not change branches, commit, push, create or
+        close issues or PRs, deploy, or modify workflow definitions or helpers.
+
+  - id: test
+    type: shell
+    run: "dotnet test --nologo"
+
+  - id: reviewdiff
+    type: shell
+    run: "python3 scripts/workflow_github.py review"
+
+  - id: publishreview
+    type: gate
+    message: "Review the diff, untracked feature files, issue links, and passing tests. Approve committing and pushing this feature branch and opening a draft PR to main. Nothing will merge automatically."
+    options: [approve, reject]
+    on_reject: abort
+    verdict_input: publish_review
+
+  - id: publish
+    type: shell
+    run: "python3 scripts/workflow_github.py publish"

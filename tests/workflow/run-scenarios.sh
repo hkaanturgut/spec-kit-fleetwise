@@ -78,4 +78,62 @@ echo "[NEEDS CLARIFICATION: who can approve a work order?]" >> specs/001-overdue
 run -i approval=approve
 expect "E open question pauses for a human" "" "paused"
 
+# Delivery wiring uses the real engine and command adapter, never real GitHub writes.
+export DELIVERY_TEST=1
+export DELIVERY_LOG="$WORK/delivery.log"
+cat > scripts/workflow_github.py <<'PY'
+import os
+from pathlib import Path
+import sys
+
+action = sys.argv[1]
+with open(os.environ["DELIVERY_LOG"], "a") as log:
+    log.write(action + "\n")
+if action == "issues":
+    Path(".issues-created").touch()
+if action == "verify-issues" and not Path(".issues-created").exists():
+    sys.exit("Missing issue creation")
+PY
+cat > "$STUB_DIR/dotnet" <<'SH'
+#!/usr/bin/env bash
+echo test >> "$DELIVERY_LOG"
+exit "${DELIVERY_TEST_EXIT:-0}"
+SH
+chmod +x "$STUB_DIR/dotnet"
+run_delivery() {
+  : > "$STUB_LOG"
+  : > "$DELIVERY_LOG"
+  rm -f .issues-created
+  specify workflow run ./workflows/speckit-delivery/workflow.yml "$@" < /dev/null > "$WORK/run.out" 2>&1 || true
+}
+expect_delivery() {
+  if [[ "$(paste -sd' ' "$DELIVERY_LOG")" != "$1" ]]; then
+    echo "FAIL delivery shell sequence: $(paste -sd' ' "$DELIVERY_LOG")"
+    fail=1
+  fi
+}
+run_delivery -i spec="Health response"
+expect "G delivery pauses at spec review" "/speckit-specify" "paused"
+expect_delivery "prepare"
+
+run_delivery -i spec="Health response" -i spec_review=approve -i plan_review=approve
+expect "H delivery pauses before public issues" "/speckit-specify /speckit-plan /speckit-tasks" "paused"
+expect_delivery "prepare"
+
+run_delivery -i spec="Health response" -i spec_review=approve -i plan_review=approve -i issues_review=approve
+expect "I delivery pauses before commit/push/PR" "/speckit-specify /speckit-plan /speckit-tasks /speckit-taskstoissues /speckit-implement" "paused"
+expect_delivery "prepare issues verify-issues test review"
+
+run_delivery -i spec="Health response" -i spec_review=approve -i plan_review=approve -i issues_review=approve -i publish_review=approve
+expect "J delivery full pipeline" "/speckit-specify /speckit-plan /speckit-tasks /speckit-taskstoissues /speckit-implement" "completed"
+expect_delivery "prepare issues verify-issues test review publish"
+
+DELIVERY_TEST_EXIT=1 run_delivery -i spec="Health response" -i spec_review=approve -i plan_review=approve -i issues_review=approve -i publish_review=approve
+expect "K failing tests prevent publication" "/speckit-specify /speckit-plan /speckit-tasks /speckit-taskstoissues /speckit-implement" "failed"
+expect_delivery "prepare issues verify-issues test"
+
+SKIP_ISSUES=1 run_delivery -i spec="Health response" -i spec_review=approve -i plan_review=approve -i issues_review=approve -i publish_review=approve
+expect "L no-op issue command prevents implementation" "/speckit-specify /speckit-plan /speckit-tasks /speckit-taskstoissues" "failed"
+expect_delivery "prepare verify-issues"
+
 exit $fail

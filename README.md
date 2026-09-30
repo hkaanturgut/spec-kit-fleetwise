@@ -513,40 +513,53 @@ present an empty list as a completed coding-agent demonstration.
 **Say:** "We just ran the stages by hand. Now one command runs them for us.
 We still own the decisions, but we do not have to type every slash command."
 
-Use Spec Kit's built-in **`speckit`** workflow. It is already installed at the
-initialized checkpoints; no custom YAML or state-tracking explanation is needed.
+Use **`speckit-delivery`**, this repo's small extension of the built-in `speckit`
+sequence. It adds GitHub task issues, a test check, and a draft PR to `main`.
+You still start the entire pipeline with one command.
 
 ```mermaid
 flowchart LR
-    START["One workflow command"] --> S["Specify"]
+    START["Create feature branch"] --> S["Specify"]
     S --> RS{"Review spec"}
     RS -- approve --> P["Plan"]
     P --> RP{"Review plan"}
     RP -- approve --> T["Tasks"]
-    T --> I["Implement"]
+    T --> RI{"Approve public issues"}
+    RI -- approve --> ISS["taskstoissues<br/>GitHub issues"]
+    ISS --> I["Implement + test"]
+    I --> RC{"Review changes"}
+    RC -- approve --> PR["Commit + push<br/>Draft PR to main"]
     RS -- reject --> STOP["Stop"]
     RP -- reject --> STOP
 ```
 
-**Prepare once before this segment, in an integrated terminal.** A separate
-working directory starts at the initialized, constitution-ready checkpoint.
-Your earlier demo work and open README stay untouched:
+**Prepare once before this segment, in an integrated terminal.** Start a separate
+working directory from current `origin/main`, then load only the initialization
+and agreed constitution from the checkpoint. This avoids publishing historical
+README/application regressions. Your earlier demo work stays untouched:
 
 ```bash
 WORKFLOW_DEMO="$(mktemp -d "${TMPDIR:-/tmp}/fleetwise-workflow.XXXXXX")"
-git worktree add --detach "$WORKFLOW_DEMO" s1-02-constitution
+git fetch origin main
+git worktree add --detach "$WORKFLOW_DEMO" origin/main
 cd "$WORKFLOW_DEMO"
+git restore --source=s1-02-constitution -- .github/skills .specify
 ```
+
+GitHub CLI must have the `hkaanturgut` account signed in with repository write
+access. The workflow switches to and verifies that account, and checks both
+origin URLs before creating a unique `demo/delivery-*` branch.
+This demo's publication helper deliberately allows only this repository.
 
 **Run the pipeline, not the individual slash commands:**
 
 > [!NOTE]
-> **What:** `specify workflow run speckit` calls Copilot for specify, plan, tasks, and implement, with two review gates.<br>
-> **When:** The repository and constitution are ready and you want the workflow to coordinate a new change.<br>
-> **Why:** Replace repeated slash commands with one pipeline invocation while keeping human decisions.
+> **What:** This workflow runs specify, plan, tasks, taskstoissues, implement, tests, and GitHub publication.<br>
+> **When:** The dedicated worktree and constitution are ready, and you want a tracked feature delivered as a PR.<br>
+> **Why:** Automate the handoffs as well as coding, with approval before public issues and publication.
 
 ```bash
-specify workflow run speckit \
+specify workflow run ./workflows/speckit-delivery/workflow.yml \
   -i integration=copilot \
   -i spec="Extend the existing GET /health endpoint to return the fixed service name FleetWise.Api alongside the existing status value ok. Preserve HTTP 200, the existing status field, and anonymous access. Add automated regression coverage. Keep all other endpoints, the database, dependencies, and architecture unchanged."
 ```
@@ -559,8 +572,14 @@ change this small can use a normal PR; it does not require the full SDD cycle.
 1. The terminal starts the **specify** stage without a slash command.
 2. At **Review spec**, open the generated `spec.md` from the feature path printed
    in the terminal. Review it, then choose **approve** to let planning run.
-3. At **Review plan**, review `plan.md`, then choose **approve**. The workflow
-   runs **tasks** and **implement** without another slash command.
+3. At **Review plan**, approve the design. The workflow generates **tasks**.
+4. Review `tasks.md`, then approve **public issue creation**. `taskstoissues`
+   creates one `demo`-labeled GitHub issue per task and records `issue-links.json`.
+   Implementation and tests run automatically next.
+5. Review the diff and new files, then approve **publication**. The workflow
+   commits to its feature branch, pushes it, and prints a **draft PR to `main`**.
+   The PR links the task issues with `Closes #...`; they close on merge, not on
+   code generation. Nothing merges automatically.
 
 Choose **reject** if the scope or design is wrong. Leave terminal input connected:
 do **not** add `< /dev/null` to this interactive demonstration.
@@ -571,9 +590,11 @@ the diagram and let the run continue; finish the reviews during rehearsal.
 **Say:** "The workflow coordinates the work. Copilot executes each stage.
 People approve intent and design, then review the resulting code before merging."
 
-The built-in workflow has no separate clarify, analyze, test, or converge stages.
-Teams can add those checks; the [advanced example](docs/workflow-automation.md)
-shows how. A completed pipeline is not proof that the generated code is correct.
+The original built-in `speckit` workflow still stops after implementation.
+Our [delivery definition](workflows/speckit-delivery/workflow.yml) adds these
+GitHub stages without modifying the installed built-in. It does not add clarify,
+analyze, or converge; the [advanced example](docs/workflow-automation.md) covers
+those customizations. A completed pipeline is not proof that code is correct.
 Copilot has broad tool permissions by default; a worktree protects against
 accidental file overlap, **not** against unrestricted tool access.
 
@@ -600,12 +621,16 @@ specify workflow status
 specify workflow resume <run_id>
 ```
 
+Retries reuse issues for the same branch/feature/task, including closed issues,
+and reuse an open PR for the same branch. A failed test or missing task issue
+stops publication; failures are not silently treated as success. A new run in
+a new worktree intentionally creates a new issue set.
+
 For a fresh attempt, repeat the preparation block **from the original demo
-checkout** to create a new working directory at `s1-02-constitution`; keep the
-previous run for inspection. Do not reset your earlier live work.
+checkout**; keep the previous run for inspection. Do not reset your earlier live work.
 Record this workflow segment during rehearsal using the
 [backup checklist](demo/backups.md). The older `s1-07-workflow` result demonstrates
-the custom workflow, not this built-in pipeline.
+the state-aware workflow, not the issue/PR delivery pipeline.
 
 </details>
 
@@ -714,7 +739,7 @@ three gates: intent, design, and implementation.
 | --- | --- | --- |
 | Custom agent | A named role with instructions and host-supported tool/model configuration | A reviewer configured with read-only tools |
 | Skill | Reusable task instructions and supporting resources, loaded by the active agent | `/speckit-plan` |
-| Workflow | Ordered steps, conditions, checks, and approval gates | Built-in `speckit`; optional custom `sdd-autopilot` |
+| Workflow | Ordered steps, conditions, checks, and approval gates | `speckit-delivery` extends the built-in `speckit` sequence |
 
 Spec Kit v1.0.13 defaults to `.github/skills/speckit-*/SKILL.md` for new Copilot
 projects. The `.github/agents/*.agent.md` plus companion prompt layout is still
@@ -738,28 +763,31 @@ described in a role name.
 ### How do we use Spec Kit workflows?
 
 **Run a workflow instead of typing each slash command.** The
-[live example above](#workflow-automation-37-42) uses the built-in `speckit`
-workflow: specify, review spec, plan, review plan, tasks, implement.
+[live example above](#workflow-automation-37-42) uses `speckit-delivery`:
+specify, plan, tasks, taskstoissues, implement, test, commit/push, draft PR.
 It still calls Copilot and the Spec Kit procedures underneath.
 
 | Start here | Customize later |
 | --- | --- |
-| Built-in `speckit`: automatic sequencing with two review gates | This repo's `sdd-autopilot`: skip unchanged work, analyze, and optionally implement/test/converge |
-| One workflow command, then approve or reject at the gates | Team-specific checks, conditions, and bounded loops |
+| Built-in `speckit`: specify through implementation, with two review gates | `speckit-delivery`: task issues and tested, reviewed publication to a draft PR |
+| One workflow command, then approve or reject at the gates | `sdd-autopilot`: skip unchanged work, analyze, and optionally implement/test/converge |
 
-You do not need a custom workflow to demonstrate automation. The optional
+You do not need a custom workflow for basic automation; GitHub publication is
+our explicit extension. The optional
 [advanced guide](docs/workflow-automation.md) covers our custom definition,
 state checks, and its separate resume/approval inputs.
 
 ### Can it run automatically without someone watching every step?
 
 **Yes. People review decisions; the workflow handles execution between them.**
-You do not need to watch every tool call. Return at the spec and plan gates,
-then review the code and test evidence before merging.
+You do not need to watch every tool call. Return at the spec, plan, public-issue,
+and publication gates, then review the PR and CI before merging.
 
 Running from a terminal is not the same as scheduled CI automation. This repo's
-CI tests workflow wiring with a stub Copilot; it does not launch real unattended
-coding runs or automatically open PRs.
+CI tests workflow wiring with a stub Copilot and mocked GitHub; CI does not launch
+real unattended coding runs. Running `speckit-delivery` locally does create real
+issues and a draft PR after the corresponding approvals. It does not create a
+GitHub Projects board or automatically assign tasks to agents.
 
 For unattended execution, use an isolated runner, narrowly scoped credentials,
 time/cost limits, saved logs, and escalation on failure. Do not pre-approve unseen

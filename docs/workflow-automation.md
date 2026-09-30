@@ -1,7 +1,28 @@
 # Workflow automation: `sdd-autopilot`
 
-**Start with the [one-command built-in workflow demo](../README.md#workflow-automation-37-42).**
-It runs specify, plan, tasks, and implement with spec/design review gates.
+**Start with the [one-command delivery demo](../README.md#workflow-automation-37-42).**
+`speckit-delivery` extends the built-in specify/plan/tasks/implement sequence
+with task issues, tests, and a draft PR. Its GitHub operations use
+`scripts/workflow_github.py`: verify the repository/account, create a unique
+branch, deduplicate issues by branch/feature/task, and publish only after review.
+Issue links are saved in the feature's `issue-links.json`. Publication refuses
+unchecked tasks, missing issues, failed tests, unexpected file changes, and
+prohibited content. The machine-local feature pointer is never staged.
+
+The `speckit.taskstoissues` command delegates to the deterministic `gh` adapter
+instead of relying on the skill's generic MCP issue tools. A following shell
+check verifies the issues actually exist before implementation begins.
+The PR is draft and targets `main`; its closing links take effect on merge.
+No automatic merge, project-board creation, or coding-agent assignment is included.
+Only `hkaanturgut/spec-kit-fleetwise` and account `hkaanturgut` are allowed by
+this demo helper. Fork owners must deliberately adapt both constants before use.
+This is an accidental-publication safeguard, not a sandbox for Copilot tools.
+
+Use interactive gates for the live demo. For non-interactive recovery, the four
+separate verdict inputs are `spec_review`, `plan_review`, `issues_review`, and
+`publish_review`. Supply only the verdict for a stage whose artifacts you have
+already reviewed; do not pre-approve all future stages.
+
 This page is the optional advanced example: a custom workflow for incremental
 changes, analysis, and a bounded build loop. Its inputs and approval commands
 are specific to `sdd-autopilot`, not the built-in `speckit` workflow.

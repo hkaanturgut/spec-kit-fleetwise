@@ -29,7 +29,8 @@ jobs:
         with:
           fetch-depth: 0
       - run: shellcheck -S warning scripts/*.sh tests/*.sh tests/workflow/*.sh tests/workflow/stub-copilot
-      - run: python3 -m py_compile scripts/speckit_state.py
+      - run: python3 -m py_compile scripts/speckit_state.py scripts/workflow_github.py
+      - run: python3 -m unittest discover -s tests -p 'test_workflow_github.py'
       - run: bash tests/preflight.sh
       - run: bash tests/checkpoints.sh
 
