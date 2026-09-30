@@ -56,6 +56,9 @@ public class ApiTests : IClassFixture<ApiTests.Factory>
     {
         var response = await _client.GetAsync("/health");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("ok", json.GetProperty("status").GetString());
+        Assert.Equal("FleetWise.Api", json.GetProperty("service").GetString());
     }
 
     [Fact]
