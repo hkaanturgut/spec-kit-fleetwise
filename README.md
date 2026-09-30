@@ -181,14 +181,17 @@ approach useful for both a human team and an AI-assisted workflow.
 Each step leaves a reviewable file. Humans own the intent; the AI does the translation; humans review at each gate.
 
 ```mermaid
-flowchart TB
+flowchart LR
     subgraph Intent["Intent (human-owned)"]
+        direction LR
         C1["/speckit-constitution<br/>constitution.md"] --> C2["/speckit-specify<br/>spec.md"] --> C3["/speckit-clarify<br/>updates spec.md"]
     end
     subgraph Design
-        D1["/speckit-plan<br/>plan, research, data model, contracts"] --> D2["/speckit-checklist<br/>checklists/*.md"] --> D3["/speckit-tasks<br/>tasks.md"]
+        direction LR
+        D1["/speckit-plan<br/>plan, research,<br/>data model, contracts"] --> D2["/speckit-checklist<br/>checklists/*.md"] --> D3["/speckit-tasks<br/>tasks.md"]
     end
     subgraph Build["Build and verify"]
+        direction LR
         B1["/speckit-analyze<br/>consistency report"] --> B2["/speckit-implement<br/>code + tests"] --> B3["/speckit-converge<br/>code vs spec"]
         B3 -- "gaps become tasks" --> B2
     end
