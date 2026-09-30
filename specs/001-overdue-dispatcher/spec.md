@@ -8,6 +8,14 @@
 
 **Input**: User description: "Fleet managers need an overdue-maintenance dispatcher. Show vehicles that are overdue or due within 7 days, by mileage or by date. Suggest a work order for each vehicle with the right service type and a technician who has the required skill. A manager must approve a work order before it is booked."
 
+## Clarifications
+
+### Session 2026-09-30
+
+- Q: What happens when no technician in the customer has the required skill? → A: Suggest the work order unassigned and flag it "no qualified technician" for the manager; never suggest another customer's technician.
+- Q: Who is allowed to approve a suggestion? → A: Only users with the FleetManager role in the same customer.
+- Q: When several technicians qualify, which one is suggested? → A: The one with the fewest scheduled work orders in the next 7 days; ties go to alphabetical order by name.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - See what needs service now (Priority: P1)
@@ -52,9 +60,9 @@ and a technician from the same customer who has the required skill.
 1. **Given** an overdue oil change and a technician with the Mechanic skill in the same customer,
    **When** the manager views the suggestion, **Then** that technician is proposed.
 2. **Given** an overdue service and no technician in the customer with the required skill,
-   **When** the manager views the suggestion, **Then** the system
-   [NEEDS CLARIFICATION: What happens when no technician in the customer has the required skill?
-   Leave it unassigned, suggest another customer's technician, or block the suggestion?]
+   **When** the manager views the suggestion, **Then** the suggestion has no technician and is flagged "no qualified technician".
+3. **Given** two qualified technicians, one with fewer scheduled work orders in the next 7 days,
+   **When** the manager views the suggestion, **Then** the less busy technician is proposed.
 
 ---
 
@@ -107,8 +115,13 @@ becomes a scheduled work order.
   same vehicle and service type.
 - **FR-006**: System MUST create a scheduled work order only after a manager approves the
   suggestion.
-- **FR-007**: Only [NEEDS CLARIFICATION: Who is allowed to approve? Any user of the customer, users
-  with a manager role, or a named approver per fleet?] can approve a suggestion.
+- **FR-007**: Only users with the FleetManager role in the same customer can approve or reject a
+  suggestion.
+- **FR-010**: When no technician in the customer holds the required skill, the suggestion MUST be
+  unassigned and flagged "no qualified technician"; technicians of other customers MUST NOT be
+  suggested.
+- **FR-011**: When several technicians qualify, the system MUST suggest the one with the fewest
+  scheduled work orders in the next 7 days, breaking ties alphabetically by name.
 - **FR-008**: System MUST record who approved or rejected each suggestion, and when.
 - **FR-009**: Existing reports and endpoints MUST keep working unchanged.
 
