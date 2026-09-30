@@ -45,3 +45,42 @@ Resolve C1 before `/speckit-implement`: update plan.md and data-model.md, then r
 Existing unchecked tasks T015-T025 (User Stories 2 and 3, polish) remain open; they are tracked, so no duplicates were appended.
 
 Outcome: tasks_appended (1 task, Phase 7: Convergence). Next: /speckit-implement to complete T015 onward.
+
+## Real Copilot workflow rehearsal (2026-09-30)
+
+The original checkpoint dry run followed the pinned skills but did not invoke
+Copilot. A later local rehearsal used Spec Kit 1.0.13 and Copilot CLI 1.0.89 from
+`s1-06-implement`, adding FR-012 without changing the historical tags.
+
+- Bare plan/tasks commands returned successfully without updating the design.
+  Analyze correctly reported FR-012 as CRITICAL and uncovered.
+- With explicit reconciliation inputs, Copilot updated `plan.md`, `research.md`,
+  `data-model.md`, `quickstart.md`, and `tasks.md`.
+- Added T027-T030: two-tenant window test, default-seven-days test, tenant field
+  and seed data, and dispatcher lookup. T001-T014 stayed completed and T026 stayed open.
+- Analyze reported **zero CRITICAL findings** and FR-012 coverage. Existing
+  medium gaps remained for post-implementation legacy regression and timing
+  coverage; these are not evidence that the unfinished stories are implemented.
+- Human review corrected a generated assumption: `TenantContext` parses headers;
+  it does not load tenant data. The planned lookup belongs in `DispatcherService`.
+- Time to the review gate: **363.4 seconds (6m03s)**. This exceeds the five-minute
+  workflow slot. Do not promise a full live run fits; use a prepared result or
+  the recorded fallback and narrate the real diffs.
+
+Stamps are written only after review approval. A zero exit code alone is not
+proof that a changed requirement was incorporated.
+
+Local readiness checks used SDK 8.0.414 with `global.json` unchanged:
+
+| Check | Result |
+| --- | --- |
+| Baseline on `main` | 15 tests passed; preflight GREEN |
+| US1 implementation checkpoint | 24 tests passed |
+| Freshly seeded HTTP API | Legacy report: 4 vehicles; tenant 1: 24 vehicles / 38 lines; tenant 2: 15 vehicles |
+| Tenant boundary checks | Disjoint vehicle IDs; missing/non-numeric tenant headers return 400 |
+| Workflow scenarios | A-F passed, including no stamps before approval |
+| Preflight regressions | Version-output pipe handling, active GitHub account, SDK resolution, and test-failure reporting passed |
+| README/docs/demo diagrams | All 13 rendered |
+
+The Copilot-generated artifacts and review corrections are preserved on
+`rehearsal/local-ready`, separate from the unchanged historical checkpoint tags.

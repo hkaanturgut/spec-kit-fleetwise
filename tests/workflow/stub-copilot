@@ -12,8 +12,12 @@ case "$cmd" in
     mkdir -p "$F"
     printf '# Feature: Overdue dispatcher\n\nManagers see overdue vehicles.\n' > "$F/spec.md"
     printf '{"feature_directory":"%s"}\n' "$F" > .specify/feature.json ;;
-  /speckit-plan)  printf '# Plan\n\nDispatcherService, TenantId scoped.\n' > "$F/plan.md" ;;
-  /speckit-tasks) printf -- '- [ ] T001 Write failing tests\n- [ ] T002 Implement DispatcherService\n' > "$F/tasks.md" ;;
+  /speckit-plan)
+    [[ "$prompt" == *"Reconcile the current spec.md"* ]] || { echo "Missing regeneration instructions" >&2; exit 1; }
+    printf '# Plan\n\nDispatcherService, TenantId scoped.\n' > "$F/plan.md" ;;
+  /speckit-tasks)
+    [[ "$prompt" == *"Reconcile tasks.md"* ]] || { echo "Missing regeneration instructions" >&2; exit 1; }
+    printf -- '- [ ] T001 Write failing tests\n- [ ] T002 Implement DispatcherService\n' > "$F/tasks.md" ;;
   /speckit-implement) sed -i.bak 's/- \[ \] T001/- [x] T001/' "$F/tasks.md" && rm -f "$F/tasks.md.bak" ;;
   /speckit-converge)  sed -i.bak 's/- \[ \] T002/- [x] T002/' "$F/tasks.md" && rm -f "$F/tasks.md.bak" ;;
 esac

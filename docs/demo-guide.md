@@ -17,6 +17,7 @@ timeline
 
 ```bash
 scripts/reset.sh
+git restore --source=main -- scripts/preflight.sh
 scripts/preflight.sh
 ```
 
@@ -160,9 +161,14 @@ Show a PR opened by the Copilot coding agent from a task issue (created with `/s
 ## Workflow automation (37-42)
 
 ```bash
+git restore --source=main -- workflows/sdd-autopilot/workflow.yml scripts/preflight.sh
 specify workflow add --dev ./workflows/sdd-autopilot   # once, before the session
 specify workflow list
 ```
+
+Run these commands after the last checkpoint jump. Historical tags intentionally
+keep their original tooling; restoring these two files takes the maintained
+workflow and preflight fixes from `main` without changing any tag.
 
 Add one line to `spec.md`:
 
@@ -175,7 +181,20 @@ python3 scripts/speckit_state.py explain
 specify workflow run sdd-autopilot -i until=analyze
 ```
 
-Narrate: specify skipped, clarify skipped, plan ran, tasks ran, analyze ran, paused at the plan gate. Type `approve`.
+Narrate: specify skipped, clarify skipped, plan ran, tasks ran, analyze ran,
+paused at the plan gate. Inspect the diffs before approving: the tenant setting
+must appear in the design, and tasks must cover the default and two tenants with
+different settings. Existing completed tasks and T026 must remain intact.
+Do not approve if analyze reports critical findings or FR-012 remains uncovered.
+
+In a non-interactive run the gate pauses. After reviewing:
+
+```bash
+specify workflow resume <run_id> -i approval=approve
+```
+
+If a critical gap remains, reject with `-i approval=reject`, fix the source
+artifacts, and start a new workflow run. Stamps are written only after approval.
 
 ```bash
 git diff --stat
@@ -183,3 +202,7 @@ specify workflow status
 ```
 
 Checkpoint: `s1-07-workflow`. See [workflow-automation.md](workflow-automation.md).
+
+The measured local Copilot run took 6m03s to reach the review gate, longer than
+this five-minute segment. Pre-run it and show the diffs, or use the fallback
+recording. Do not approve an unchanged plan just to meet the clock.

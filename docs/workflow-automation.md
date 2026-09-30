@@ -13,12 +13,13 @@ flowchart TB
     SP -- no --> Q{"open questions?"}
     Q -- yes --> QG["Gate: clarify in Copilot Chat,<br/>then resume"] --> PL
     Q -- no --> PL{"plan stale?"}
-    PL -- yes --> PLC["speckit.plan + stamp"] --> TK
+    PL -- yes --> PLC["speckit.plan<br/>reconcile changed requirements"] --> TK
     PL -- no --> TK{"tasks stale?"}
-    TK -- yes --> TKC["speckit.tasks + stamp"] --> AN
+    TK -- yes --> TKC["speckit.tasks<br/>preserve completed work"] --> AN
     TK -- no --> AN["speckit.analyze<br/>(always)"]
     AN --> G["Gate: approve plan"]
-    G --> U{"until = converge?"}
+    G -- approve --> STAMP["Stamp reviewed plan/tasks"] --> U{"until = converge?"}
+    G -- reject --> ABORT(["stop, fix the source"])
     U -- no --> END(["done"])
     U -- yes --> I["speckit.implement"] --> T["dotnet test"] --> CV["speckit.converge"] --> R{"open tasks<br/>remain?"}
     R -- "yes (max 3 loops)" --> I
@@ -38,7 +39,19 @@ flowchart TB
 | `tasks_stale` | Plan is stale, no `tasks.md`, or `plan.md` changed since the tasks were built |
 | `open_tasks` | `tasks.md` still has unchecked items |
 
-**Fingerprints, not just timestamps.** After the workflow runs `plan` or `tasks`, it stamps a SHA-256 of the input (`spec.md` or `plan.md`) into `<feature>/.sdd-stamps.json`. A regenerated plan that comes out identical still counts as up to date. Without a stamp (a plan made by hand in chat), the script falls back to git commit time or file modification time.
+**Fingerprints, not just timestamps.** After plan/tasks run **and a human approves
+their diffs and the analyze report**, the workflow stamps a SHA-256 of the input
+(`spec.md` or `plan.md`) into `<feature>/.sdd-stamps.json`. Before approval, no new
+stamps are written. An unchanged artifact may be valid, but a command exiting
+successfully does not prove it covers the spec. Without a stamp (a plan made by
+hand in chat), the script falls back to git commit time or file modification time.
+
+**Regeneration must be explicit.** The pinned planning setup script preserves
+existing files. A bare `/speckit-plan` or `/speckit-tasks` can result in Copilot
+summarizing those files instead of updating them. Command inputs explicitly tell
+Copilot to reconcile changed requirements, write the necessary artifacts, and
+preserve completed task IDs and checkboxes. The gate remains a human semantic
+check, not an automated guarantee of requirement coverage.
 
 Try it by hand:
 
@@ -52,9 +65,9 @@ python3 scripts/speckit_state.py explain
 specify workflow add --dev ./workflows/sdd-autopilot
 specify workflow run sdd-autopilot -i until=analyze            # stop after the plan gate
 specify workflow run sdd-autopilot -i until=converge           # build until converged
-specify workflow run sdd-autopilot -i approval=approve         # pre-answer the plan gate (CI)
+specify workflow run sdd-autopilot -i approval=approve         # bypass review, offline stub tests only
 specify workflow status
-specify workflow resume <run_id>                               # continue a paused run
+specify workflow resume <run_id> -i approval=approve           # only after reviewing the diffs/report
 ```
 
 Run history lives in `.specify/workflows/runs/<run_id>/` (`state.json`, `inputs.json`, `log.jsonl`).
@@ -66,10 +79,11 @@ sequenceDiagram
     participant WF as specify workflow run
     participant CLI as GitHub Copilot CLI
     participant Repo as Working tree
-    WF->>CLI: copilot -p "/speckit-plan" --yolo --output-format json
+    WF->>CLI: copilot -p "/speckit-plan Reconcile..." --yolo --output-format json
     CLI->>Repo: reads spec, writes plan.md, research.md, ...
     CLI-->>WF: exit code + JSON result
-    WF->>Repo: shell step: stamp plan
+    Note over WF,Repo: tasks and analyze run, then a human reviews
+    WF->>Repo: stamp inputs only after approval
 ```
 
 Each command step is a fresh, non-interactive Copilot session with a clean context, which keeps every step focused.
@@ -104,3 +118,7 @@ edits:
 | C: `spec.md` changed | plan, tasks, analyze | completed |
 | D: nothing changed | analyze | completed |
 | E: `[NEEDS CLARIFICATION]` in spec | none | paused at the clarify gate |
+| F: changed spec, no approval | plan, tasks, analyze | paused, previous stamps unchanged |
+
+The stub also asserts that the plan/tasks reconciliation instructions reach the
+CLI. This checks workflow wiring, not the quality of AI-generated artifacts.

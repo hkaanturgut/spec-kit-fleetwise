@@ -81,9 +81,15 @@ steps:
         type: command
         command: speckit.plan
         integration: "{{ inputs.integration }}"
-      - id: stampplan
-        type: shell
-        run: "python3 scripts/speckit_state.py stamp plan"
+        input:
+          args: >-
+            Reconcile the current spec.md with the existing plan and all design artifacts.
+            The workflow detected missing or stale inputs. Existing files are not proof
+            that planning is complete. Read the entire spec, identify changed requirements,
+            and edit plan.md, research.md, data-model.md, contracts and quickstart as needed.
+            Preserve valid design decisions and tenant isolation. Report requirement IDs
+            addressed and actual file changes. Do not implement application code, commit,
+            push, or change the spec.
 
   - id: taskscheck
     type: if
@@ -93,9 +99,14 @@ steps:
         type: command
         command: speckit.tasks
         integration: "{{ inputs.integration }}"
-      - id: stamptasks
-        type: shell
-        run: "python3 scripts/speckit_state.py stamp tasks"
+        input:
+          args: >-
+            Reconcile tasks.md with the current spec.md and updated design artifacts.
+            Generate missing tasks or update stale tasks; do not merely summarize the
+            existing file. Cover every new or changed requirement with explicit requirement
+            IDs and test-first tasks. Preserve existing task IDs, completed checkboxes and
+            convergence tasks. Append new IDs for new work. Do not implement application
+            code, commit, push, or change the spec.
 
   # 6. Always verify consistency, then a human approves before any code is written.
   - id: analyze
@@ -105,11 +116,27 @@ steps:
 
   - id: plangate
     type: gate
-    message: "Review the analyze report and the plan. Approve to continue."
+    message: "Review the analyze report and artifact diffs. Reject if critical findings or uncovered changed requirements remain. Approve to stamp the reviewed artifacts and continue."
     show_file: "{{ steps.state.output.data.feature_dir }}/plan.md"
     options: [approve, reject]
     on_reject: abort
     verdict_input: approval
+
+  - id: planstampcheck
+    type: if
+    condition: "{{ steps.state.output.data.plan_stale }}"
+    then:
+      - id: stampplan
+        type: shell
+        run: "python3 scripts/speckit_state.py stamp plan"
+
+  - id: tasksstampcheck
+    type: if
+    condition: "{{ steps.state.output.data.tasks_stale }}"
+    then:
+      - id: stamptasks
+        type: shell
+        run: "python3 scripts/speckit_state.py stamp tasks"
 
   # 7. Optional build loop: implement, test, converge, while open tasks remain.
   - id: buildcheck
