@@ -21,10 +21,94 @@ flowchart LR
     D --> E["Plan inside the<br/>existing architecture"]
     E --> F["analyze catches a<br/>constitution violation"]
     F --> G["implement + converge<br/>tests go green"]
-    G --> H["Spec change<br/>workflow reruns only<br/>what is stale"]
+    G --> H["One workflow command<br/>runs the stages<br/>with human review gates"]
 ```
 
 ## Quick start
+
+## The ideas behind this demo
+
+### What is spec-driven development?
+
+Spec-driven development (SDD) is a way to build software from an explicit,
+reviewable description of intended behavior. The team agrees on the problem,
+users, constraints, acceptance criteria, and important decisions before asking
+someone or something to implement them. The specification is a living contract:
+when the intent changes, the design, tasks, tests, and code that depend on it
+can be updated together.
+
+SDD does not mean writing a large document before writing any code. It means
+making the next meaningful change understandable and testable. In a brownfield
+system, start with one bounded slice, inspect the existing conventions, record
+the decisions that matter, and leave the rest of the legacy system alone.
+
+### SDLC vs. AI-DLC
+
+The software development life cycle (SDLC) describes the stages a team uses to
+deliver and operate software: discover requirements, design, build, test,
+release, and learn from production. It is a useful map for the whole product
+lifecycle and applies whether the work is manual or AI-assisted.
+
+AI-DLC describes how those stages change when AI can generate designs, code,
+tests, and documentation at high speed. The bottleneck moves from producing
+artifacts to establishing intent, supplying context, checking correctness, and
+approving risk. AI-DLC therefore emphasizes explicit specifications, small
+reviewable increments, traceability, and human gates at decisions that affect
+users, security, data, or architecture.
+
+SDD is the practical bridge between them. It gives AI-DLC a stable source of
+truth while preserving the familiar SDLC stages:
+
+| SDLC concern | AI-DLC practice | Spec Kit evidence |
+| --- | --- | --- |
+| Requirements | Make intent and constraints explicit | Constitution, spec, clarification decisions |
+| Design | Ask AI to work inside the existing architecture | Plan, data model, contracts, tasks |
+| Construction | Generate bounded changes from approved tasks | Implementation, tests, code review |
+| Verification | Check artifacts and behavior continuously | Analysis findings, test results, convergence report |
+| Change management | Revisit only the stages affected by a requirement change | Updated artifacts and workflow state |
+
+### Why practice SDD in the AI era?
+
+AI makes implementation cheaper, but it does not make ambiguous requirements
+safe. Without a shared specification, an agent can produce a polished answer
+that silently invents a threshold, omits tenant isolation, or changes an API
+contract. Faster generation can make incorrect assumptions spread faster too.
+
+SDD helps a team:
+
+- keep humans responsible for intent, trade-offs, and acceptance;
+- give AI the context and constraints needed for useful implementation;
+- review decisions before they are buried in code;
+- trace a requirement through design, tasks, tests, and behavior;
+- recover when an agent makes a plausible but incorrect change; and
+- automate repeatable work without automating approval of unknown decisions.
+
+The goal is not more paperwork. The goal is to move important reasoning into a
+small, shared artifact that both people and AI can inspect.
+
+### What is GitHub Spec Kit?
+
+[GitHub Spec Kit](https://github.com/github/spec-kit) is an open-source toolkit
+for practicing SDD with an AI coding agent. It provides reusable commands,
+templates, and workflow support for turning intent into a constitution,
+specification, clarification decisions, technical plan, tasks, implementation,
+and verification.
+
+Spec Kit is a delivery process, not a replacement application architecture or a
+promise that AI-generated code is correct. Teams still choose the requirements,
+review the design, run the tests, and approve the change. In this repository,
+Spec Kit is applied to an existing .NET API: the team first captures current
+conventions, then adds one tenant-scoped overdue-dispatcher slice without
+rewriting FleetWise.
+
+The central loop is:
+
+```text
+intent -> specify -> clarify -> plan -> tasks -> analyze -> implement -> converge
+```
+
+Each step leaves evidence that can be reviewed or rerun. That is what makes the
+approach useful for both a human team and an AI-assisted workflow.
 
 Prerequisites: .NET 8 SDK **8.0.400 or later in the 8.0 line** (see `global.json`), Python 3.11+, [uv](https://docs.astral.sh/uv/), Git, VS Code with GitHub Copilot. The workflow segment also needs [GitHub Copilot CLI](https://docs.github.com/copilot/how-tos/set-up/install-copilot-cli). The API examples use `curl` and `jq`; the team segment uses the GitHub CLI.
 
@@ -121,9 +205,9 @@ git restore --source=main -- README.md scripts/jump.sh scripts/reset.sh scripts/
 ```
 
 **Readiness limits:** the recorded checkpoints are available, but backup video
-clips and the coding-agent PR segment still need preparation. The real workflow
-rehearsal took 6m03s, beyond its five-minute slot. Do not describe either item as
-finished preparation.
+clips and the coding-agent PR segment still need preparation. The workflow segment
+demonstrates starting the pipeline and reviewing its gates, not finishing an
+AI-generated feature within five minutes.
 
 ### Hook: prompt-only coding (0-3)
 
@@ -180,6 +264,14 @@ bug fixes, and team adoption.
 
 ```bash
 git switch -c "adopt-spec-kit-$(date +%Y%m%d-%H%M%S)"
+```
+
+> [!NOTE]
+> **What:** `specify init` installs Spec Kit's project files and Copilot skills in this repository.<br>
+> **When:** Once when adopting Spec Kit, before writing the constitution or a feature spec.<br>
+> **Why:** Give the agent a repeatable process without replacing the existing application. `--force` permits setup in a non-empty directory; review the resulting changes.
+
+```bash
 specify init --here --force --integration copilot
 git status --short
 ```
@@ -212,6 +304,11 @@ layer, record its violations as debt, and explicitly agree on tenant isolation."
 
 **Copilot Chat:**
 
+> [!NOTE]
+> **What:** `/speckit-constitution` records the team's agreed engineering principles.<br>
+> **When:** At adoption, or when the team deliberately changes its rules, not for every ticket.<br>
+> **Why:** Make constraints such as tenant isolation explicit so later design and implementation can be reviewed against them.
+
 ```text
 /speckit-constitution Capture only principles that are true in this codebase today or that the team agreed now:
 1. Data access goes through the service layer; controllers never use DbContext directly. The two existing violations are known debt, not allowed patterns.
@@ -239,6 +336,11 @@ scripts/jump.sh s1-02-constitution
 
 **Copilot Chat:**
 
+> [!NOTE]
+> **What:** `/speckit-specify` turns a feature request into user stories, requirements, and acceptance criteria.<br>
+> **When:** Starting a bounded feature or behavior change that needs an explicit agreement.<br>
+> **Why:** Define what success means before the agent chooses how to implement it. A straightforward bug with clear expected behavior does not need a new feature spec.
+
 ```text
 /speckit-specify Fleet managers need an overdue-maintenance dispatcher. Show vehicles that are overdue or due within 7 days, by mileage or by date. Suggest a work order for each vehicle with the right service type and a technician who has the required skill. A manager must approve a work order before it is booked.
 ```
@@ -265,6 +367,11 @@ scripts/jump.sh s1-03-specify
 
 **Copilot Chat:**
 
+> [!NOTE]
+> **What:** `/speckit-clarify` asks targeted questions and integrates the answers into the spec.<br>
+> **When:** Requirements contain ambiguities or unresolved business decisions, ideally before planning.<br>
+> **Why:** Have people decide policy rather than letting implementation silently invent it.
+
 ```text
 /speckit-clarify
 ```
@@ -287,9 +394,19 @@ scripts/jump.sh s1-04-clarify
 
 **Copilot Chat, one command at a time:**
 
+> [!NOTE]
+> **What:** `/speckit-plan` translates the spec into a technical plan and supporting design artifacts.<br>
+> **When:** Behavior is understood, before generating implementation tasks; revisit it when requirements or design constraints change.<br>
+> **Why:** Check architecture, data contracts, and constitution compliance before investing in code.
+
 ```text
 /speckit-plan Extend the existing .NET 8 Web API and EF Core model. Reuse VehicleService and WorkOrderService, add a DispatcherService in the existing service layer, and expose endpoints under /api/dispatch. Use the existing SQLite setup locally. No new projects and no new frameworks.
 ```
+
+> [!NOTE]
+> **What:** `/speckit-tasks` converts the spec and design into an ordered implementation checklist.<br>
+> **When:** The plan is ready for review, or design changes require the task list to be reconciled.<br>
+> **Why:** Make dependencies, test work, and potential parallel tasks visible instead of asking the agent to build everything at once.
 
 ```text
 /speckit-tasks
@@ -313,6 +430,11 @@ tenant-scoped, while the plan's Constitution Check says PASS.
 
 **Copilot Chat:**
 
+> [!NOTE]
+> **What:** `/speckit-analyze` checks the spec, plan, and tasks for inconsistencies, coverage gaps, and constitution violations without fixing them.<br>
+> **When:** All three artifacts exist, before implementation and after significant artifact changes.<br>
+> **Why:** Find contradictions cheaply while they are still in the design. This is not a substitute for tests or human review.
+
 ```text
 /speckit-analyze
 ```
@@ -330,9 +452,19 @@ tenant-scoped, while the plan's Constitution Check says PASS.
 Fix this at the source: update plan.md and data-model.md so every dispatcher query and command is scoped by TenantId. Do not edit tasks.md by hand.
 ```
 
+> [!NOTE]
+> **What:** Rerun `/speckit-tasks` to reconcile the checklist with the corrected tenant-scoped design.<br>
+> **When:** After fixing the source artifacts identified by analysis.<br>
+> **Why:** Carry the design correction into implementation and test tasks, rather than leaving a stale checklist.
+
 ```text
 /speckit-tasks
 ```
+
+> [!NOTE]
+> **What:** Rerun `/speckit-analyze` against the updated artifacts.<br>
+> **When:** After regenerating tasks and before moving into implementation.<br>
+> **Why:** Verify that the original finding is resolved and the correction did not introduce another inconsistency.
 
 ```text
 /speckit-analyze
@@ -355,6 +487,11 @@ use the Step 7 recovery rather than imply the recorded implementation just ran l
 
 **Copilot Chat:**
 
+> [!NOTE]
+> **What:** `/speckit-implement` executes the planned tasks, modifying code and tests.<br>
+> **When:** The design is reviewed and critical analysis findings are resolved.<br>
+> **Why:** Build against explicit scope and dependencies. Here the phase limit keeps the live build to User Story 1, not the entire feature.
+
 ```text
 /speckit-implement Phases 1 to 3 only (User Story 1, the MVP)
 ```
@@ -366,6 +503,11 @@ dotnet test --nologo
 ```
 
 **Copilot Chat:**
+
+> [!NOTE]
+> **What:** `/speckit-converge` compares the implementation with the feature artifacts and records remaining gaps as tasks.<br>
+> **When:** After an implementation slice and its tests, or when checking whether code has caught up with the spec.<br>
+> **Why:** Passing tests alone do not prove requirement coverage. Convergence exposes unfinished behavior without pretending the feature is complete.
 
 ```text
 /speckit-converge
@@ -427,6 +569,11 @@ without leaving the README. Three gates are intent, design, and implementation.
 
 **Prepare before presenting, not during the five-minute segment:**
 
+> [!NOTE]
+> **What:** `/speckit-taskstoissues` turns feature tasks into GitHub issues.<br>
+> **When:** The task breakdown is reviewed and you are ready to distribute work.<br>
+> **Why:** Move agreed work into the team's tracking and PR process. This creates remote issues; it does not by itself assign agents or guarantee independent tasks.
+
 ```text
 /speckit-taskstoissues
 ```
@@ -447,71 +594,129 @@ present an empty list as a completed coding-agent demonstration.
 
 ### Workflow automation (37-42)
 
-**Say:** "Automate the execution between decisions, not the approval of unknown decisions."
+**Say:** "We just ran the stages by hand. Now one command runs them for us.
+We still own the decisions, but we do not have to type every slash command."
 
-**Stop Terminal B's API with Ctrl+C.** Save any live work you want to keep before
-loading the workflow starting checkpoint.
+Use **`speckit-delivery`**, this repo's small extension of the built-in `speckit`
+sequence. It adds GitHub task issues, a test check, and a draft PR to `main`.
+You still start the entire pipeline with one command.
 
-**Terminal A:**
-
-```bash
-scripts/jump.sh s1-06-implement
-specify workflow add --dev ./workflows/sdd-autopilot
-specify workflow list
+```mermaid
+flowchart LR
+    START["Create feature branch"] --> S["Specify"]
+    S --> RS{"Review spec"}
+    RS -- approve --> P["Plan"]
+    P --> RP{"Review plan"}
+    RP -- approve --> T["Tasks"]
+    T --> RI{"Approve public issues"}
+    RI -- approve --> ISS["taskstoissues<br/>GitHub issues"]
+    ISS --> I["Implement + test"]
+    I --> RC{"Review changes"}
+    RC -- approve --> PR["Commit + push<br/>Draft PR to main"]
+    RS -- reject --> STOP["Stop"]
+    RP -- reject --> STOP
 ```
 
-In VS Code, append this requirement under Functional Requirements in
-`specs/001-overdue-dispatcher/spec.md`, then save:
-
-```text
-- **FR-012**: The overdue window is configurable per tenant (default 7 days).
-```
-
-**Terminal A:**
+**Prepare once before this segment, in an integrated terminal.** Start a separate
+working directory from current `origin/main`, then load only the initialization
+and agreed constitution from the checkpoint. This avoids publishing historical
+README/application regressions. Your earlier demo work stays untouched:
 
 ```bash
-python3 scripts/speckit_state.py explain
-specify workflow run sdd-autopilot -i until=analyze < /dev/null
+WORKFLOW_DEMO="$(mktemp -d "${TMPDIR:-/tmp}/fleetwise-workflow.XXXXXX")"
+git fetch origin main
+git worktree add --detach "$WORKFLOW_DEMO" origin/main
+cd "$WORKFLOW_DEMO"
+git restore --source=s1-02-constitution -- .github/skills .specify
 ```
 
-**Expected:** specify and clarify skip; plan/tasks update; analyze runs; the
-review gate pauses. It does not implement FR-012 yet.
-The recorded real Copilot run took **6m03s**, so pre-run it for a five-minute
-presentation slot, or use the checkpoint fallback below.
+GitHub CLI must have the `hkaanturgut` account signed in with repository write
+access. The workflow switches to and verifies that account, and checks both
+origin URLs before creating a unique `demo/delivery-*` branch.
+This demo's publication helper deliberately allows only this repository.
 
-**Review before approval:**
+**Run the pipeline, not the individual slash commands:**
+
+> [!NOTE]
+> **What:** This workflow runs specify, plan, tasks, taskstoissues, implement, tests, and GitHub publication.<br>
+> **When:** The dedicated worktree and constitution are ready, and you want a tracked feature delivered as a PR.<br>
+> **Why:** Automate the handoffs as well as coding, with approval before public issues and publication.
 
 ```bash
-git --no-pager diff --stat
-git --no-pager diff -- specs/001-overdue-dispatcher
+specify workflow run ./workflows/speckit-delivery/workflow.yml \
+  -i integration=copilot \
+  -i spec="Extend the existing GET /health endpoint to return the fixed service name FleetWise.Api alongside the existing status value ok. Preserve HTTP 200, the existing status field, and anonymous access. Add automated regression coverage. Keep all other endpoints, the database, dependencies, and architecture unchanged."
+```
+
+This intentionally tiny change keeps attention on orchestration. Normally a
+change this small can use a normal PR; it does not require the full SDD cycle.
+
+**What to show, not a specific generated result:**
+
+1. The terminal starts the **specify** stage without a slash command.
+2. At **Review spec**, open the generated `spec.md` from the feature path printed
+   in the terminal. Review it, then choose **approve** to let planning run.
+3. At **Review plan**, approve the design. The workflow generates **tasks**.
+4. Review `tasks.md`, then approve **public issue creation**. `taskstoissues`
+   creates one `demo`-labeled GitHub issue per task and records `issue-links.json`.
+   Implementation and tests run automatically next.
+5. Review the diff and new files, then approve **publication**. The workflow
+   commits to its feature branch, pushes it, and prints a **draft PR to `main`**.
+   The PR links the task issues with `Closes #...`; they close on merge, not on
+   code generation. Nothing merges automatically.
+
+Choose **reject** if the scope or design is wrong. Leave terminal input connected:
+do **not** add `< /dev/null` to this interactive demonstration.
+The point is the pipeline and its gates, not identical generated files or a
+finished feature during the five-minute segment. If generation is slow, explain
+the diagram and let the run continue; finish the reviews during rehearsal.
+
+**Say:** "The workflow coordinates the work. Copilot executes each stage.
+People approve intent and design, then review the resulting code before merging."
+
+The original built-in `speckit` workflow still stops after implementation.
+Our [delivery definition](workflows/speckit-delivery/workflow.yml) adds these
+GitHub stages without modifying the installed built-in. It does not add clarify,
+analyze, or converge; the [advanced example](docs/workflow-automation.md) covers
+those customizations. A completed pipeline is not proof that code is correct.
+Copilot has broad tool permissions by default; a worktree protects against
+accidental file overlap, **not** against unrestricted tool access.
+
+<details>
+<summary>Recovery only: inspect or resume a paused run</summary>
+
+Run these in the same workflow working directory.
+
+> [!NOTE]
+> **What:** `specify workflow status` shows saved runs and their current stage.<br>
+> **When:** A run has paused or failed.<br>
+> **Why:** Find its run ID and distinguish an approval pause from an error.
+
+```bash
 specify workflow status
 ```
 
-The design must contain the per-tenant window; tasks must cover the default and
-two tenants with different settings. Preserve completed tasks and T026. Reject
-if critical findings or uncovered changed requirements remain.
-
-**After review, replace `<run_id>` with the ID printed by the workflow:**
-
-```bash
-specify workflow resume <run_id> -i approval=approve < /dev/null
-```
-
-Use `approval=reject` instead if the artifacts are not ready. Stamps are written
-only after approval. An exit code of zero is not proof that an AI changed the files.
-For the optional build loop, use `until=converge` when starting the run; see the
-[automation Q&A](#can-it-run-automatically-without-someone-watching-every-step).
-
-**Recorded checkpoint fallback:**
+> [!NOTE]
+> **What:** `specify workflow resume` continues the saved run and prompts at its review gate.<br>
+> **When:** Resuming a paused run, or retrying after diagnosing and fixing a failure.<br>
+> **Why:** Continue without restarting completed stages. Replace `<run_id>` with the printed ID.
 
 ```bash
-scripts/jump.sh s1-07-workflow
-git --no-pager diff s1-06-implement s1-07-workflow -- specs/001-overdue-dispatcher
+specify workflow resume <run_id>
 ```
 
-Narrate this as a prepared result. It is not a new live run. The separate
-`rehearsal/local-ready` branch preserves the later real Copilot-generated result
-and review corrections; the original tags remain unchanged.
+Retries reuse issues for the same branch/feature/task, including closed issues,
+and reuse an open PR for the same branch. A failed test or missing task issue
+stops publication; failures are not silently treated as success. A new run in
+a new worktree intentionally creates a new issue set.
+
+For a fresh attempt, repeat the preparation block **from the original demo
+checkout**; keep the previous run for inspection. Do not reset your earlier live work.
+Record this workflow segment during rehearsal using the
+[backup checklist](demo/backups.md). The older `s1-07-workflow` result demonstrates
+the state-aware workflow, not the issue/PR delivery pipeline.
+
+</details>
 
 ### First 30 days (42-45)
 
@@ -539,7 +744,7 @@ flowchart LR
 ```
 
 Checkpoint files are available now. Video clips still need recording: hook,
-constitution, analyze finding, implementation/convergence, and workflow change.
+constitution, analyze finding, implementation/convergence, and workflow pipeline.
 Never force-update the published `s1-*` tags during practice.
 
 ## Q&A: everyday development
@@ -618,7 +823,7 @@ three gates: intent, design, and implementation.
 | --- | --- | --- |
 | Custom agent | A named role with instructions and host-supported tool/model configuration | A reviewer configured with read-only tools |
 | Skill | Reusable task instructions and supporting resources, loaded by the active agent | `/speckit-plan` |
-| Workflow | Ordered steps, conditions, checks, and approval gates | `sdd-autopilot` |
+| Workflow | Ordered steps, conditions, checks, and approval gates | `speckit-delivery` extends the built-in `speckit` sequence |
 
 Spec Kit v1.0.13 defaults to `.github/skills/speckit-*/SKILL.md` for new Copilot
 projects. The `.github/agents/*.agent.md` plus companion prompt layout is still
@@ -641,68 +846,37 @@ described in a role name.
 
 ### How do we use Spec Kit workflows?
 
-Workflows chain commands, conditions, shell checks, and review gates. This repo's
-`sdd-autopilot` uses Spec Kit's built-in workflow engine with a repository-specific
-definition. It checks state, skips current stages, and reconciles stale plan/tasks.
+**Run a workflow instead of typing each slash command.** The
+[live example above](#workflow-automation-37-42) uses `speckit-delivery`:
+specify, plan, tasks, taskstoissues, implement, test, commit/push, draft PR.
+It still calls Copilot and the Spec Kit procedures underneath.
 
-Use an initialized feature on an isolated worktree or feature branch, with
-clarification questions resolved. Use the current workflow from `main`; see the
-[runbook above](#workflow-automation-37-42) when starting from a historical tag.
+| Start here | Customize later |
+| --- | --- |
+| Built-in `speckit`: specify through implementation, with two review gates | `speckit-delivery`: task issues and tested, reviewed publication to a draft PR |
+| One workflow command, then approve or reject at the gates | `sdd-autopilot`: skip unchanged work, analyze, and optionally implement/test/converge |
 
-```bash
-specify workflow add --dev ./workflows/sdd-autopilot
-specify workflow run sdd-autopilot -i until=converge < /dev/null
-```
-
-The non-interactive run pauses at the plan-review gate. Review the generated
-diffs and analyze report, then approve:
-
-```bash
-specify workflow status
-specify workflow resume <run_id> -i approval=approve < /dev/null
-```
-
-Use `until=analyze` instead when you only want design review, not implementation.
-Use `approval=reject` when the artifacts are not ready. Input fingerprints are
-stamped only after approval.
+You do not need a custom workflow for basic automation; GitHub publication is
+our explicit extension. The optional
+[advanced guide](docs/workflow-automation.md) covers our custom definition,
+state checks, and its separate resume/approval inputs.
 
 ### Can it run automatically without someone watching every step?
 
-**Yes between decision points, not without accountability.**
+**Yes. People review decisions; the workflow handles execution between them.**
+You do not need to watch every tool call. Return at the spec, plan, public-issue,
+and publication gates, then review the PR and CI before merging.
 
-```mermaid
-flowchart LR
-    H1["Human<br/>Intent + clarification"] --> A1["Automatic<br/>Stale plan/tasks + analyze"]
-    A1 --> H2{"Human reviews<br/>diffs + findings"}
-    H2 -- reject --> FIX["Resolve gaps<br/>Start a new run"]
-    FIX --> A1
-    H2 -- approve --> A2["Automatic<br/>Stamp, implement, test, converge<br/>Up to 3 iterations"]
-    A2 -- checks pass --> H3["Human<br/>Review remaining tasks + code PR"]
-    A2 -- failure --> STOP["Stop<br/>Diagnose before resuming"]
-```
+Running from a terminal is not the same as scheduled CI automation. This repo's
+CI tests workflow wiring with a stub Copilot and mocked GitHub; CI does not launch
+real unattended coding runs. Running `speckit-delivery` locally does create real
+issues and a draft PR after the corresponding approvals. It does not create a
+GitHub Projects board or automatically assign tasks to agents.
 
-The PR review in this diagram is a team responsibility, not an automatic PR-opening
-step in the current workflow.
-
-| Available in this repo | Not implemented here yet |
-| --- | --- |
-| State-aware execution and resumable review gates | Scheduled or issue-triggered real Copilot runs in GitHub Actions |
-| Bounded implement/test/converge loop | Automatic repair after a failing test command |
-| CI builds, tests, and offline workflow checks | Automatic task assignment, PR creation, and failure notifications |
-
-**Today a failing `dotnet test` stops the run.** The loop can repeat when tests
-pass and tasks remain, up to three iterations. Reaching that limit does not prove
-all work is complete. CI uses a stub Copilot for workflow checks, not a live coding agent.
-
-For unattended execution, use an isolated runner with narrowly scoped credentials,
-time/cost limits, preserved logs, and escalation on ambiguity or failure. Keep
-human merge approval initially. Do not pre-approve unseen plans just to remove
-the pauses.
-
-The current Copilot integration enables broad tool permissions by default
-(`--yolo`, controlled by `SPECKIT_COPILOT_ALLOW_ALL_TOOLS`).
-**A feature branch is not a security sandbox.** Review the
-[workflow automation guide](docs/workflow-automation.md) before running it unattended.
+For unattended execution, use an isolated runner, narrowly scoped credentials,
+time/cost limits, saved logs, and escalation on failure. Do not pre-approve unseen
+plans simply to remove pauses. See the
+[advanced guide](docs/workflow-automation.md) for the custom workflow's limits.
 
 ## Checkpoints
 
